@@ -252,7 +252,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "1.4",
+  VERSION: "1.5",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -735,7 +735,26 @@ function crearCliente(url, llave) {
     }
   };
 
-  return { auth, storage, from: (t) => new Consulta(t) };
+  // Llamar una funcion que vive dentro de la base de datos.
+  // Se usa para activar y rechazar contratistas: la funcion vuelve a
+  // comprobar el rol alla adentro, asi que no basta con saber la direccion.
+  async function rpc(nombre, args = {}) {
+    try {
+      const r = await pedir(`/rest/v1/rpc/${nombre}`, {
+        method: "POST",
+        headers: cabeceras({ "Content-Type": "application/json" }),
+        body: JSON.stringify(args)
+      });
+      const txt = await r.text();
+      const j = txt ? JSON.parse(txt) : null;
+      if (!r.ok) return { data: null, error: { message: mensajeDeError(j, r) } };
+      return { data: j, error: null };
+    } catch (e) {
+      return { data: null, error: { message: "Failed to fetch: " + e.message } };
+    }
+  }
+
+  return { auth, storage, rpc, from: (t) => new Consulta(t) };
 }
 
 let sb = null;
@@ -1144,10 +1163,114 @@ const API = {
     return true;
   },
 
+  // ============================ panel de Leo ============================
+  // Solo funciona si el perfil tiene rol "staff_mc2". Si no, la base de
+  // datos devuelve vacio: la proteccion no depende de esconder la pantalla.
+  async colaVerificacion() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const cn = d.contratista;
+      return cn ? [{
+        id: cn.id, nombre: cn.nombre, telefono: cn.telefono,
+        cedula: cn.cedula, ruc: cn.ruc,
+        idoneidad_numero: cn.idoneidadNumero || null,
+        idoneidad_estado: cn.idoneidadEstado || "pendiente",
+        antecedentes_estado: "pendiente",
+        verificacion: cn.verificacion || "pendiente",
+        suspendido: false, docs_aprobados: 0, docs_subidos: 0,
+        refs_positivas: 0, refs_totales: 0, activo: false,
+        creado: new Date().toISOString()
+      }] : [];
+    }
+    const { data, error } = await c.from("v_cola_verificacion").select("*");
+    if (error) { console.warn("MC2: no se pudo leer la cola.", error); return []; }
+    return data || [];
+  },
+
+  async detalleContratista(id) {
+    const c = await cliente();
+    if (!c) return (await this.colaVerificacion()).find(x => x.id === id) || null;
+    const [{ data: c1 }, { data: cats }, { data: refs }] = await Promise.all([
+      c.from("contratistas").select("*").eq("id", id).single(),
+      c.from("contratista_categorias").select("categoria_id").eq("contratista_id", id),
+      c.from("referencias_contratista").select("*").eq("contratista_id", id)
+    ]);
+    if (!c1) return null;
+    const { data: p } = await c.from("perfiles").select("nombre,telefono").eq("id", id).single();
+    return {
+      ...c1,
+      nombre: p?.nombre || "", telefono: p?.telefono || "",
+      cats: (cats || []).map(x => x.categoria_id),
+      referencias: refs || []
+    };
+  },
+
+  // Marca una casilla del checklist (cedula, ruc, seguro, referencias...)
+  async marcarVerificacion(id, campo, valor) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({ [campo]: valor }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  async guardarIdoneidad(id, { numero, categoria, vence, estado }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({
+      idoneidad_numero: numero || null,
+      idoneidad_categoria: categoria || null,
+      idoneidad_vence: vence || null,
+      idoneidad_estado: estado
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  async registrarReferencia(id, { nombre, telefono, resultado, notas }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("referencias_contratista").insert({
+      contratista_id: id, nombre, telefono,
+      llamada: true, llamada_en: new Date().toISOString(),
+      resultado, notas: notas || null
+    });
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  // Activar, rechazar y suspender pasan por funciones de la base de datos
+  // que verifican el rol otra vez. Aunque alguien llamara esto por fuera
+  // de la app, sin ser staff no pasa nada.
+  async activarContratista(id, nota) {
+    const c = await cliente();
+    if (!c) return true;
+    const r = await pedirFuncion(c, "activar_contratista", { p_id: id, p_nota: nota || null });
+    return r;
+  },
+  async rechazarContratista(id, motivo) {
+    const c = await cliente();
+    if (!c) return true;
+    return await pedirFuncion(c, "rechazar_contratista", { p_id: id, p_motivo: motivo });
+  },
+  async suspenderContratista(id, motivo) {
+    const c = await cliente();
+    if (!c) return true;
+    return await pedirFuncion(c, "suspender_contratista", { p_id: id, p_motivo: motivo });
+  },
+
   async borrarDemo() {
     try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
   }
 };
+
+// Llama una funcion guardada dentro de la base de datos.
+async function pedirFuncion(c, nombre, args) {
+  const r = await c.rpc(nombre, args);
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+}
 
 function normalizar(f) {
   const serv = servicioPorId(f.servicio_id);
@@ -1899,6 +2022,11 @@ function vistaPerfil(ctx) {
         consolidada y credito a 30 dias.
       </div>
 
+      ${u.rol === "staff_mc2" ? `
+        <button class="btn btn-azul" data-ir="p-cola">
+          &#128203; Panel de contratistas</button>
+        <div style="height:10px"></div>` : ""}
+
       <button class="btn btn-linea btn-chico" id="b-soporte">&#128172; Escribir a soporte</button>
       <div style="height:10px"></div>
       <button class="btn btn-suave btn-chico" id="b-salir">Cerrar sesion</button>
@@ -2600,6 +2728,344 @@ return { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, 
 })();
 
 
+/* ===== vistas-panel.js ===== */
+__M["vistas-panel"] = (function(){
+// =====================================================================
+//  MC2 — PANEL DE LEO
+//  Aqui se aprueba o se rechaza a cada contratista.
+//  Solo lo ve quien tenga rol "staff_mc2". Y aunque alguien llegara a
+//  esta pantalla por las malas, la base de datos no le devolveria nada.
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG } = __M["config"];
+const { API, CATEGORIAS, NIVELES } = __M["datos"];
+const { esc } = __M["vistas"];
+
+const cab = (titulo, { volver = null, sub = null } = {}) => `
+  <div class="cab">
+    <div class="cab-fila">
+      ${volver ? `<button class="volver" data-ir="${volver}" aria-label="Volver">&#8592;</button>` : ""}
+      <div style="flex:1">
+        <h1>${esc(titulo)}</h1>
+        ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+
+const iniciales = (n) => String(n || "").trim().split(/\s+/).slice(0, 2)
+  .map(p => p[0] || "").join("").toUpperCase();
+
+const fecha = (iso) => {
+  try { return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short" }); }
+  catch (e) { return ""; }
+};
+
+// Los 7 requisitos. Si falta uno, el contratista no ve trabajos.
+const REQUISITOS = [
+  ["ver_cedula",         "Cedula"],
+  ["ver_ruc",            "RUC"],
+  ["ver_seguro",         "Poliza de seguro"],
+  ["ver_referencias",    "Dos referencias llamadas"],
+  ["ver_prueba_tecnica", "Prueba tecnica"]
+];
+
+function cuantosListos(c) {
+  let n = REQUISITOS.filter(([k]) => c[k]).length;
+  if (c.idoneidad_estado === "aprobado") n++;
+  if (c.antecedentes_estado === "aprobado") n++;
+  return n;
+}
+
+// ------------------------------------------------- 1. COLA DE VERIFICACION
+function vistaPanel(ctx) {
+  const lista = ctx.cola || [];
+  const pendientes = lista.filter(c => !c.activo && c.verificacion !== "rechazado");
+  const activos    = lista.filter(c => c.activo);
+  const fuera      = lista.filter(c => c.verificacion === "rechazado" || c.suspendido);
+
+  const tarjeta = (c) => {
+    const listos = cuantosListos(c);
+    return `
+    <div class="tarjeta ${c.activo ? "" : "destacada"}" data-ver="${c.id}" style="cursor:pointer">
+      <div class="item" style="align-items:center">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--azul-luz);
+             color:var(--azul);display:flex;align-items:center;justify-content:center;
+             font-weight:700;font-size:13px">${esc(iniciales(c.nombre))}</div>
+        <div style="flex:1">
+          <p class="nom">${esc(c.nombre || "Sin nombre")}</p>
+          <p class="det">${esc(c.telefono || "")} &middot; entro el ${esc(fecha(c.creado))}</p>
+          <div style="margin-top:5px">
+            ${c.activo
+              ? `<span class="etiqueta et-verde">Activo</span>`
+              : c.verificacion === "rechazado"
+                ? `<span class="etiqueta et-roja">Rechazado</span>`
+                : c.suspendido
+                  ? `<span class="etiqueta et-roja">Suspendido</span>`
+                  : `<span class="etiqueta ${listos >= 5 ? "et-naranja" : "et-gris"}">${listos} de 7 requisitos</span>`}
+          </div>
+        </div>
+        <span style="font-size:20px;color:var(--gris-2)">&rsaquo;</span>
+      </div>
+    </div>`;
+  };
+
+  const html = `
+    ${cab("Contratistas", { sub: `${pendientes.length} por revisar` })}
+    <div class="cont vista">
+      ${lista.length === 0 ? `
+        <div class="vacio">
+          <span class="ico">&#128203;</span>
+          Todavia no se ha registrado ningun contratista.
+          <div style="font-size:12.5px;margin-top:10px;line-height:1.5">
+            Cuando alguien se registre desde "Soy contratista",<br>aparece aqui para que lo revises.
+          </div>
+        </div>` : ""}
+
+      ${pendientes.length ? `
+        <p class="seccion-tit">Por revisar</p>
+        ${pendientes.map(tarjeta).join("")}` : ""}
+
+      ${activos.length ? `
+        <p class="seccion-tit" style="margin-top:18px">Activos (${activos.length})</p>
+        ${activos.map(tarjeta).join("")}` : ""}
+
+      ${fuera.length ? `
+        <p class="seccion-tit" style="margin-top:18px">Fuera de la plataforma</p>
+        ${fuera.map(tarjeta).join("")}` : ""}
+
+      <div class="aviso aviso-azul" style="margin-top:20px">
+        <b>&#9888;&#65039; Nadie trabaja sin los 7 requisitos</b>
+        Un contratista puede entrar a la app y ver como funciona, pero no le
+        aparece ni un solo trabajo hasta que tu lo actives aqui.
+      </div>
+    </div>
+    ${barraPanel("cola")}`;
+
+  function montar(el, { ir }) {
+    el.querySelectorAll("[data-ver]").forEach(d => {
+      d.onclick = () => ir("p-contratista", { id: d.dataset.ver });
+    });
+  }
+  return { html, montar };
+}
+
+const barraPanel = (activo) => `
+  <nav class="barra">
+    <button data-ir="p-cola" class="${activo === "cola" ? "activo" : ""}">
+      <span class="ico">&#128203;</span><span class="txt">Contratistas</span></button>
+    <button data-ir="inicio">
+      <span class="ico">&#127968;</span><span class="txt">Ver como cliente</span></button>
+    <button data-ir="perfil">
+      <span class="ico">&#128100;</span><span class="txt">Mi cuenta</span></button>
+  </nav>`;
+
+// ------------------------------------------------- 2. FICHA DEL CONTRATISTA
+function vistaContratistaDetalle(ctx) {
+  const c = ctx.contratista;
+  if (!c) return {
+    html: `${cab("Contratista", { volver: "p-cola" })}
+      <div class="cont"><div class="vacio">No encontramos a esa persona.</div></div>`,
+    montar() {}
+  };
+
+  const listos = cuantosListos(c);
+  const completo = listos === 7;
+  const activo = c.verificacion === "verificado" && !c.suspendido;
+  const refs = c.referencias || [];
+  const refsOk = refs.filter(r => r.llamada && r.resultado === "positiva").length;
+
+  const fila = (campo, etiqueta, marcado) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;
+         border-bottom:1px solid var(--gris-luz)">
+      <span style="flex:1;font-size:14px">${esc(etiqueta)}</span>
+      <button class="etiqueta ${marcado ? "et-verde" : "et-gris"}" data-req="${campo}"
+        data-val="${marcado ? "0" : "1"}"
+        style="border:0;cursor:pointer;padding:7px 14px;font-size:11.5px">
+        ${marcado ? "&#10004; Listo" : "Pendiente"}
+      </button>
+    </div>`;
+
+  const html = `
+    ${cab(c.nombre || "Contratista", { volver: "p-cola", sub: c.telefono || "" })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      ${activo ? `
+        <div class="aviso aviso-verde"><b>&#9989; Activo</b>
+          Esta recibiendo trabajos desde el ${esc(fecha(c.activado_en))}.</div>`
+      : c.verificacion === "rechazado" ? `
+        <div class="aviso aviso-rojo"><b>Rechazado</b>
+          ${esc(c.motivo_rechazo || "Sin motivo registrado.")}</div>`
+      : c.suspendido ? `
+        <div class="aviso aviso-rojo"><b>Suspendido</b>
+          No recibe trabajos.</div>`
+      : `
+        <div class="aviso ${completo ? "aviso-verde" : "aviso-naranja"}">
+          <b>${listos} de 7 requisitos</b>
+          ${completo ? "Ya puedes activarlo." : "No ve trabajos hasta completar los 7."}
+        </div>`}
+
+      <div class="tarjeta plana">
+        <p class="seccion-tit">Datos</p>
+        <div style="font-size:13.5px;line-height:1.9">
+          <div><b>Cedula:</b> ${esc(c.cedula || "no puso")}</div>
+          <div><b>RUC:</b> ${esc(c.ruc || "no puso")}</div>
+          <div><b>Especialidades:</b> ${(c.cats || []).map(id => {
+            const x = CATEGORIAS.find(k => k.id === id);
+            return esc(x ? x.nombre : id);
+          }).join(", ") || "ninguna"}</div>
+          <div><b>Nivel:</b> ${esc(NIVELES[c.nivel]?.nombre || "Bronce")}
+            ${c.es_fundador ? " &middot; Fundador" : ""}</div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="fila-btn">
+          <button class="btn btn-linea btn-chico" id="b-llamar">&#128222; Llamar</button>
+          <button class="btn btn-linea btn-chico" id="b-wa">&#128172; WhatsApp</button>
+        </div>
+      </div>
+
+      <p class="seccion-tit" style="margin-top:18px">Requisitos</p>
+      <div class="tarjeta">
+        ${REQUISITOS.map(([k, t]) => fila(k, t, !!c[k])).join("")}
+
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0;
+             border-bottom:1px solid var(--gris-luz)">
+          <span style="flex:1;font-size:14px">Antecedentes penales</span>
+          <button class="etiqueta ${c.antecedentes_estado === "aprobado" ? "et-verde" : "et-gris"}"
+            id="b-antec" style="border:0;cursor:pointer;padding:7px 14px;font-size:11.5px">
+            ${c.antecedentes_estado === "aprobado" ? "&#10004; Listo" : "Pendiente"}
+          </button>
+        </div>
+
+        <div style="padding:13px 0 4px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="flex:1;font-size:14px;font-weight:600">Idoneidad de la Junta Tecnica</span>
+            <span class="etiqueta ${c.idoneidad_estado === "aprobado" ? "et-verde" : "et-gris"}">
+              ${c.idoneidad_estado === "aprobado" ? "&#10004; Aprobada" : "Pendiente"}</span>
+          </div>
+          <input id="i-num" type="text" placeholder="Numero del certificado"
+                 value="${esc(c.idoneidad_numero || "")}" style="margin-bottom:7px">
+          <input id="i-cat" type="text" placeholder="Categoria (ej: electricista general)"
+                 value="${esc(c.idoneidad_categoria || "")}" style="margin-bottom:7px">
+          <label for="i-vence" style="margin-top:4px">Vence</label>
+          <input id="i-vence" type="date" value="${esc(c.idoneidad_vence || "")}">
+          <div style="height:9px"></div>
+          <div class="fila-btn">
+            <button class="btn btn-suave btn-chico" id="b-ido-ok">Aprobar idoneidad</button>
+            <button class="btn btn-linea btn-chico" id="b-ido-no">Rechazar</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="seccion-tit" style="margin-top:18px">
+        Referencias llamadas (${refsOk} positivas de ${refs.length})</p>
+      <div class="tarjeta">
+        ${refs.length ? refs.map(r => `
+          <div style="padding:9px 0;border-bottom:1px solid var(--gris-luz)">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="flex:1;font-size:14px">${esc(r.nombre)}</span>
+              <span class="etiqueta ${r.resultado === "positiva" ? "et-verde"
+                : r.resultado === "negativa" ? "et-roja" : "et-gris"}">
+                ${esc(r.resultado || "sin llamar")}</span>
+            </div>
+            <div class="det">${esc(r.telefono)}${r.notas ? " &middot; " + esc(r.notas) : ""}</div>
+          </div>`).join("") : `<p class="det">Todavia no has registrado ninguna llamada.</p>`}
+
+        <div style="height:12px"></div>
+        <p class="seccion-tit">Anotar una llamada</p>
+        <input id="r-nom" type="text" placeholder="Nombre de quien contesto" style="margin-bottom:7px">
+        <input id="r-tel" type="tel" placeholder="Telefono" style="margin-bottom:7px">
+        <input id="r-nota" type="text" placeholder="Que te dijo" style="margin-bottom:9px">
+        <div class="fila-btn">
+          <button class="btn btn-suave btn-chico" id="b-ref-si">&#128077; Positiva</button>
+          <button class="btn btn-linea btn-chico" id="b-ref-no">&#128078; Negativa</button>
+        </div>
+      </div>
+
+      <div style="height:20px"></div>
+      ${!activo ? `
+        <button class="btn btn-primario" id="b-activar" ${completo ? "" : "disabled"}>
+          ${completo ? "Activar contratista" : `Faltan ${7 - listos} requisitos`}
+        </button>
+        <div style="height:10px"></div>
+        <button class="btn btn-linea btn-chico" id="b-rechazar">Rechazar</button>`
+      : `
+        <button class="btn btn-linea btn-chico" id="b-suspender"
+          style="color:var(--rojo-osc)">Suspender contratista</button>`}
+      <div style="height:24px"></div>
+    </div>`;
+
+  function montar(el, { ir, recargar }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+    const tel = String(c.telefono || "").replace(/\D/g, "");
+
+    const hacer = async (fn) => {
+      try { await fn(); recargar(); }
+      catch (e) { err(e.message || "No se pudo guardar."); }
+    };
+
+    if ($("#b-llamar")) $("#b-llamar").onclick = () => { location.href = `tel:+507${tel}`; };
+    if ($("#b-wa")) $("#b-wa").onclick = () =>
+      window.open(`https://wa.me/507${tel}?text=${encodeURIComponent(
+        "Hola " + (c.nombre || "") + ", te escribo de MC2 por tu registro como contratista.")}`, "_blank");
+
+    el.querySelectorAll("[data-req]").forEach(b => {
+      b.onclick = () => hacer(() =>
+        API.marcarVerificacion(c.id, b.dataset.req, b.dataset.val === "1"));
+    });
+
+    $("#b-antec").onclick = () => hacer(() => API.marcarVerificacion(
+      c.id, "antecedentes_estado",
+      c.antecedentes_estado === "aprobado" ? "pendiente" : "aprobado"));
+
+    $("#b-ido-ok").onclick = () => {
+      if (!$("#i-num").value.trim()) return err("Escribe el numero del certificado.");
+      hacer(() => API.guardarIdoneidad(c.id, {
+        numero: $("#i-num").value.trim(), categoria: $("#i-cat").value.trim(),
+        vence: $("#i-vence").value || null, estado: "aprobado"
+      }));
+    };
+    $("#b-ido-no").onclick = () => hacer(() => API.guardarIdoneidad(c.id, {
+      numero: $("#i-num").value.trim(), categoria: $("#i-cat").value.trim(),
+      vence: $("#i-vence").value || null, estado: "rechazado"
+    }));
+
+    const anotar = (resultado) => {
+      const nombre = $("#r-nom").value.trim();
+      const telr = $("#r-tel").value.trim();
+      if (nombre.length < 2) return err("Escribe el nombre de quien contesto.");
+      hacer(() => API.registrarReferencia(c.id, {
+        nombre, telefono: telr, resultado, notas: $("#r-nota").value.trim()
+      }));
+    };
+    $("#b-ref-si").onclick = () => anotar("positiva");
+    $("#b-ref-no").onclick = () => anotar("negativa");
+
+    if ($("#b-activar")) $("#b-activar").onclick = () => {
+      if (!completo) return;
+      const b = $("#b-activar"); b.disabled = true; b.textContent = "Activando...";
+      hacer(() => API.activarContratista(c.id, "Verificado por el panel"));
+    };
+
+    if ($("#b-rechazar")) $("#b-rechazar").onclick = () => {
+      const motivo = prompt("Por que lo rechazas? Queda anotado.");
+      if (motivo) hacer(() => API.rechazarContratista(c.id, motivo));
+    };
+
+    if ($("#b-suspender")) $("#b-suspender").onclick = () => {
+      const motivo = prompt("Por que lo suspendes? Queda anotado.");
+      if (motivo) hacer(() => API.suspenderContratista(c.id, motivo));
+    };
+  }
+  return { html, montar };
+}
+
+return { vistaPanel, vistaContratistaDetalle };
+})();
+
+
 /* ===== app.js ===== */
 __M["app"] = (function(){
 // =====================================================================
@@ -2614,6 +3080,7 @@ const { CONFIG } = __M["config"];
 const { API, modoDemo, cargarCatalogo } = __M["datos"];
 const { vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil } = __M["vistas"];
 const { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, vistaCobrar, vistaAgenda, vistaPerfilContratista } = __M["vistas-contratista"];
+const { vistaPanel, vistaContratistaDetalle } = __M["vistas-panel"];
 
 const raiz = document.getElementById("app");
 
@@ -2627,6 +3094,7 @@ const estado = {
   misTrabajos: [],
   cerca: [],
   trabajo: null,
+  cola: [],
   zona: CONFIG.ZONAS[0]
 };
 
@@ -2645,10 +3113,14 @@ const VISTAS = {
   "c-trabajo":  vistaTrabajoContratista,
   "c-cobrar":   vistaCobrar,
   "c-agenda":   vistaAgenda,
-  "c-perfil":   vistaPerfilContratista
+  "c-perfil":   vistaPerfilContratista,
+  // panel de Leo
+  "p-cola":         vistaPanel,
+  "p-contratista":  vistaContratistaDetalle
 };
 
 const esRutaContratista = (r) => r.startsWith("c-") && r !== "c-registro";
+const esRutaPanel = (r) => r.startsWith("p-");
 const NECESITAN_TRABAJOS = ["inicio", "trabajos", "trabajo"];
 
 function pintarCargando() {
@@ -2674,6 +3146,17 @@ async function cargarDatos() {
       estado.misTrabajos = estado.misTrabajos || [];
       estado.billetera = estado.billetera || { disponible:0, transito:0, semana:0, trabajosSemana:0 };
       estado.cerca = estado.cerca || [];
+    }
+  }
+
+  if (esRutaPanel(r)) {
+    try {
+      estado.cola = await API.colaVerificacion();
+      if (r === "p-contratista" && estado.params.id) {
+        estado.contratista = await API.detalleContratista(estado.params.id);
+      }
+    } catch (e) {
+      estado.cola = estado.cola || [];
     }
   }
 
@@ -2724,7 +3207,11 @@ function ir(ruta, params = {}, usuario = null) {
 }
 
 // pantalla de inicio segun el rol
-const casa = (u) => (u && u.rol === "contratista") ? "c-trabajos" : "inicio";
+const casa = (u) => {
+  if (u && u.rol === "contratista") return "c-trabajos";
+  if (u && u.rol === "staff_mc2") return "p-cola";
+  return "inicio";
+};
 
 window.addEventListener("popstate", (ev) => {
   const s = ev.state;
