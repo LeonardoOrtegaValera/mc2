@@ -40,15 +40,22 @@ body{
 #app{max-width:480px; margin:0 auto; background:var(--blanco); min-height:100vh;
      display:flex; flex-direction:column; position:relative}
 
-/* ---------- Cabecera ---------- */
-.cab{background:var(--azul); color:#fff; padding:14px 16px}
+/* ---------- Cabecera ----------
+   El padding de arriba respeta la barra de estado del iPhone.
+   Sin esto, el titulo y el boton de volver quedan DEBAJO de la hora
+   y del notch, y el boton no se puede tocar. */
+.cab{background:var(--azul); color:#fff;
+     padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 14px}
 .cab-fila{display:flex; align-items:center; gap:10px}
 .cab h1{font-size:18px; margin:0; font-weight:600}
 .cab .sub{font-size:12px; color:#85B7EB; margin-top:2px}
 .cab .saludo{font-size:12px; color:#85B7EB}
 .cab .pregunta{font-size:19px; font-weight:600; margin-top:2px}
-.volver{background:none;border:0;color:#E6F1FB;font-size:22px;line-height:1;
-        padding:0 4px 0 0;cursor:pointer}
+/* Area de toque grande: un boton de 44px es lo minimo comodo en un celular */
+.volver{background:none;border:0;color:#E6F1FB;font-size:24px;line-height:1;
+        min-width:44px;min-height:44px;margin-left:-10px;cursor:pointer;
+        display:flex;align-items:center;justify-content:center}
+.volver:active{opacity:.5}
 .chip-zona{margin-top:11px;background:var(--azul-2);border:0;border-radius:20px;
   padding:7px 12px;color:#E6F1FB;font-size:12px;display:inline-flex;align-items:center;
   gap:6px;cursor:pointer;font-family:inherit}
@@ -136,9 +143,11 @@ textarea{min-height:76px;resize:vertical}
 .et-azul{background:var(--azul-luz);color:var(--azul)}
 .et-gris{background:var(--gris-luz);color:var(--gris)}
 
-/* ---------- Barra inferior ---------- */
+/* ---------- Barra inferior ----------
+   El padding de abajo respeta la franja del boton de inicio del iPhone. */
 .barra{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--gris-3);
-  display:flex;padding:8px 0 10px;max-width:480px;margin:0 auto;width:100%}
+  display:flex;max-width:480px;margin:0 auto;width:100%;
+  padding:8px 0 calc(10px + env(safe-area-inset-bottom, 0px))}
 .barra button{flex:1;background:none;border:0;cursor:pointer;font-family:inherit;
   color:var(--gris-2);padding:2px}
 .barra button .ico{font-size:20px;display:block}
@@ -243,7 +252,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "1.3",
+  VERSION: "1.4",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -838,6 +847,7 @@ const API = {
         servicioNombre: serv ? serv.nombre : "Trabajo",
         categoria: t.categoria, tipoPropiedad: t.tipoPropiedad, urgencia: t.urgencia,
         direccion: t.direccion, detalle: t.detalle || "", descripcion: t.descripcion || "",
+        lat: t.lat ?? null, lng: t.lng ?? null,
         foto: t.foto || null, fotoDespues: null,
         estado: "asignado", contratista: asignado, contratistaId: asignado.id,
         eco, pagos: [], creado: new Date().toISOString(), calificacion: null
@@ -852,7 +862,9 @@ const API = {
       servicio_id: t.servicioId, categoria_id: t.categoria, modalidad: "precio_fijo",
       estado: "buscando", tipo_propiedad: t.tipoPropiedad, urgencia: t.urgencia,
       direccion: t.direccion, detalle_ubicacion: t.detalle || null,
-      descripcion: t.descripcion || null, monto_base: base,
+      descripcion: t.descripcion || null,
+      lat: t.lat ?? null, lng: t.lng ?? null,
+      monto_base: base,
       tarifa_cliente: eco.tarifa, total_cliente: eco.totalCliente
     }).select().single();
     if (error) throw new Error(traducir(error.message));
@@ -1145,6 +1157,7 @@ function normalizar(f) {
     categoria:f.categoria_id, tipoPropiedad:f.tipo_propiedad, urgencia:f.urgencia,
     direccion:f.direccion, detalle:f.detalle_ubicacion || "", descripcion:f.descripcion || "",
     estado:f.estado, contratistaId:f.contratista_id, contratista:null,
+    lat:f.lat ?? null, lng:f.lng ?? null,
     distancia:null, foto:null, fotoDespues:null,
     eco: economia(f.monto_base, { exento:!!serv?.exento, nivel:"oro" }),
     creado:f.creado, calificacion:null
@@ -1487,12 +1500,20 @@ function vistaPedir(ctx) {
       <input type="file" id="f-foto" accept="image/*" capture="environment" style="display:none">
       <div id="previa"></div>
 
-      <label for="f-dir">&iquest;Donde queda?</label>
+      <label>&iquest;Donde queda?</label>
+      <button class="btn btn-azul btn-chico" id="b-ubicar">
+        &#128205; Usar mi ubicacion</button>
+      <div id="mapa" style="display:none;margin-top:10px"></div>
+      <div id="est-ubi" class="ayuda" style="margin-top:6px"></div>
+
       <input id="f-dir" type="text" placeholder="PH Costa Bay, Costa del Este"
-             value="${esc(ctx.zona || "")}">
+             value="${esc(ctx.zona || "")}" style="margin-top:10px">
+      <p class="ayuda">Puedes corregir la direccion a mano si hace falta.</p>
 
       <label for="f-det">Torre, piso y apartamento o local</label>
       <input id="f-det" type="text" placeholder="Torre B, piso 14, apto 1402">
+      <p class="ayuda">Esto es lo mas importante: el GPS llega al edificio,
+        pero solo tu sabes el apartamento.</p>
 
       <label>Tipo de propiedad</label>
       <div class="opciones" id="ops-tipo">
@@ -1545,6 +1566,60 @@ function vistaPedir(ctx) {
     let foto = null;
     let tipo = "ph";
     let urg = ctx.params.urgencia || "normal";
+    let lat = null, lng = null;
+
+    // ---- Ubicacion por GPS ----
+    // El mapa se muestra con OpenStreetMap incrustado: es gratis, no pide
+    // llave de nadie y no nos amarra a ningun proveedor de pago.
+    const pintarMapa = (la, lo) => {
+      const d = 0.0035;
+      const caja = [lo - d, la - d, lo + d, la + d].join("%2C");
+      $("#mapa").style.display = "block";
+      $("#mapa").innerHTML =
+        `<iframe title="Mapa de la ubicacion" style="width:100%;height:180px;border:0;
+          border-radius:var(--r-g)" loading="lazy"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=${caja}&layer=mapnik&marker=${la}%2C${lo}"></iframe>`;
+    };
+
+    $("#b-ubicar").onclick = () => {
+      const b = $("#b-ubicar");
+      const est = $("#est-ubi");
+      if (!navigator.geolocation) {
+        est.textContent = "Tu celular no permite ubicacion. Escribe la direccion a mano.";
+        return;
+      }
+      b.disabled = true; b.textContent = "Buscando tu ubicacion...";
+      est.textContent = "";
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        lat = pos.coords.latitude; lng = pos.coords.longitude;
+        pintarMapa(lat, lng);
+        b.disabled = false; b.textContent = "\u{1F4CD} Actualizar mi ubicacion";
+        est.textContent = "Ubicacion tomada. Revisa el mapa.";
+
+        // Intentamos traducir las coordenadas a una direccion legible.
+        // Si el servicio no responde, no pasa nada: las coordenadas ya
+        // quedaron guardadas y son lo que de verdad le sirve al tecnico.
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=es`);
+          if (r.ok) {
+            const j = await r.json();
+            if (j.display_name && !$("#f-dir").dataset.tocado) {
+              $("#f-dir").value = j.display_name.split(",").slice(0, 3).join(",").trim();
+            }
+          }
+        } catch (e) { /* seguimos con las coordenadas */ }
+      }, (err) => {
+        b.disabled = false; b.textContent = "\u{1F4CD} Usar mi ubicacion";
+        est.textContent = err.code === 1
+          ? "No diste permiso de ubicacion. Puedes escribir la direccion a mano."
+          : "No pudimos tomar tu ubicacion. Escribe la direccion a mano.";
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    };
+
+    // Si el cliente corrige la direccion, no se la volvemos a pisar.
+    $("#f-dir").oninput = () => { $("#f-dir").dataset.tocado = "1"; };
 
     $("#zona-foto").onclick = () => $("#f-foto").click();
     $("#f-foto").onchange = (e) => {
@@ -1582,7 +1657,7 @@ function vistaPedir(ctx) {
         const t = await API.crearTrabajo({
           servicioId: s.id, categoria: s.cat, tipoPropiedad: tipo, urgencia: urg,
           direccion, detalle: $("#f-det").value.trim(),
-          descripcion: $("#f-desc").value.trim(), foto
+          descripcion: $("#f-desc").value.trim(), foto, lat, lng
         });
         ir("trabajo", { id: t.id });
       } catch (e) {
@@ -2176,7 +2251,8 @@ function vistaTrabajoContratista(ctx) {
         <p style="margin:0;font-size:14.5px;font-weight:600">${esc(t.direccion)}</p>
         ${t.detalle ? `<p class="det">${esc(t.detalle)}</p>` : ""}
         <div style="height:10px"></div>
-        <button class="btn btn-linea btn-chico" id="b-mapa">&#128506; Abrir en el mapa</button>
+        <button class="btn btn-linea btn-chico" id="b-mapa">&#128506; Como llegar</button>
+        ${t.lat && t.lng ? `<p class="ayuda">Ubicacion exacta por GPS del cliente.</p>` : ""}
       </div>
 
       ${t.descripcion ? `
@@ -2230,6 +2306,12 @@ function vistaTrabajoContratista(ctx) {
     const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
 
     $("#b-mapa").onclick = () => {
+      // Si el cliente uso el GPS, mandamos al tecnico a las coordenadas
+      // exactas. Es la diferencia entre llegar al edificio o dar vueltas.
+      if (t.lat && t.lng) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`, "_blank");
+        return;
+      }
       const q = encodeURIComponent(`${t.direccion} ${t.detalle || ""} Panama`);
       window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, "_blank");
     };
