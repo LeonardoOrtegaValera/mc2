@@ -1,0 +1,19 @@
+{
+  "name": "MC2 - Mantenimiento y Construccion 2.0",
+  "short_name": "MC2",
+  "description": "Reparaciones de plomeria, electricidad y mantenimiento en Panama. Contratistas verificados, precio cerrado y garantia de 7 dias.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0C447C",
+  "lang": "es-PA",
+  "dir": "ltr",
+  "categories": ["business", "utilities"],
+  "icons": [
+    { "src": "./iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./iconos/icono-mascara.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
