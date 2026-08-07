@@ -1284,6 +1284,30 @@ const API = {
     if (!c) return null;
     await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
     return true;
+  },
+
+  // ---- CANCELAR Y SOLTAR (7 de agosto de 2026) ----
+  // Quien puede hacer que lo decide la base de datos, no la app.
+  async cancelarTrabajo(id, motivo) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = (d.pendientes || []).concat(d.trabajos || []).find(x => x.id === id);
+      if (t) { t.estado = "cancelado"; guardarDemo(d); }
+      return { ok: true };
+    }
+    return await pedirFuncion(c, "cancelar_trabajo", { p_id: id, p_motivo: motivo || null });
+  },
+
+  async soltarTrabajo(id, motivo) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = (d.trabajos || []).find(x => x.id === id);
+      if (t) { t.estado = "buscando"; t.contratistaId = null; guardarDemo(d); }
+      return { ok: true };
+    }
+    return await pedirFuncion(c, "soltar_trabajo", { p_id: id, p_motivo: motivo || null });
   }
 };
 
@@ -2015,6 +2039,12 @@ function vistaTrabajo(ctx) {
       </div>` : `
       <div class="tarjeta plana"><div class="cargando">Buscando tecnico disponible...</div></div>`}
 
+      ${["buscando","asignado","en_camino"].includes(t.estado) ? `
+      <div style="height:12px"></div>
+      <button class="btn btn-linea btn-chico" id="b-cancelar"
+        style="border-color:#E24B4A;color:#E24B4A">Cancelar esta solicitud</button>
+      <div id="err-cancelar"></div>` : ""}
+
       <div class="dinero">
         <div class="l"><span>Trabajo</span><span>${money(eco.base)}</span></div>
         <div class="l"><span>Garantia MC2</span><span>${eco.tarifa ? money(eco.tarifa) : "Incluida"}</span></div>
@@ -2075,6 +2105,18 @@ function vistaTrabajo(ctx) {
     if ($("#b-llamar")) $("#b-llamar").onclick = () => location.href = `tel:+${tel}`;
     if ($("#b-wa")) $("#b-wa").onclick = () =>
       window.open(`https://wa.me/${tel}?text=${encodeURIComponent("Hola, es sobre el trabajo " + (t.folio || ""))}`, "_blank");
+
+    if ($("#b-cancelar")) $("#b-cancelar").onclick = async () => {
+      if (!confirm("Vas a cancelar esta solicitud. Si ya hay un tecnico asignado, " +
+                   "se le avisa que ya no vayas. Seguro?")) return;
+      const b = $("#b-cancelar"); b.disabled = true; b.textContent = "Cancelando...";
+      const r = await API.cancelarTrabajo(t.id, null);
+      if (r && r.ok) { ir("trabajos"); return; }
+      b.disabled = false; b.textContent = "Cancelar esta solicitud";
+      const c = $("#err-cancelar");
+      if (c) c.innerHTML = `<div class="aviso aviso-rojo" style="margin-top:9px">${
+        esc((r && r.error) || "No se pudo cancelar. Intenta de nuevo.")}</div>`;
+    };
 
     if ($("#b-anticipo")) $("#b-anticipo").onclick = async () => {
       const b = $("#b-anticipo"); b.disabled = true; b.textContent = "Procesando...";
@@ -2592,6 +2634,16 @@ function vistaTrabajoContratista(ctx) {
         <button class="btn btn-primario" data-ir="c-cobrar" data-id="${t.id}">
           Terminar y cobrar</button>` : ""}
 
+      ${mio && ["asignado","en_camino"].includes(t.estado) ? `
+        <div style="height:22px"></div>
+        <button class="btn btn-linea btn-chico" id="b-soltar"
+          style="border-color:#E24B4A;color:#E24B4A">No puedo ir, soltar este trabajo</button>
+        <p class="ayuda" style="margin-top:7px">
+          Vuelve a la bolsa para que otro tecnico lo tome. Queda anotado en tu ficha,
+          asi que no lo uses seguido.
+        </p>
+        <div id="err-soltar"></div>` : ""}
+
       ${cerrado ? `
         <div class="aviso aviso-verde" style="margin-top:14px">
           <b>&#9989; Trabajo cerrado</b>
@@ -2626,8 +2678,33 @@ function vistaTrabajoContratista(ctx) {
 
     if ($("#b-aceptar")) $("#b-aceptar").onclick = async () => {
       const b = $("#b-aceptar"); b.disabled = true; b.textContent = "Aceptando...";
-      try { await API.aceptarTrabajo(t.id); recargar(); }
-      catch (e) { err("No se pudo aceptar. Puede que otro tecnico lo haya tomado."); b.disabled = false; }
+      try {
+        const r = await API.aceptarTrabajo(t.id);
+        // ANTES esto no se miraba: si otro se te adelantaba, la pantalla
+        // recargaba sin decir nada y parecia una falla de la app.
+        if (!r) {
+          b.textContent = "Ya lo tomo otro tecnico";
+          err("Otro tecnico lo acepto primero. Ya no esta disponible.");
+          setTimeout(recargar, 1500);
+          return;
+        }
+        recargar();
+      } catch (e) {
+        err("No se pudo aceptar. Puede que otro tecnico lo haya tomado.");
+        b.disabled = false; b.textContent = "Aceptar trabajo";
+      }
+    };
+
+    if ($("#b-soltar")) $("#b-soltar").onclick = async () => {
+      const motivo = prompt("Por que no puedes ir? (opcional, lo ve solo MC2)");
+      if (motivo === null) return;   // le dio a cancelar
+      const b = $("#b-soltar"); b.disabled = true; b.textContent = "Soltando...";
+      const r = await API.soltarTrabajo(t.id, motivo);
+      if (r && r.ok) { ir("c-trabajos"); return; }
+      b.disabled = false; b.textContent = "No puedo ir, soltar este trabajo";
+      const c = $("#err-soltar");
+      if (c) c.innerHTML = `<div class="aviso aviso-rojo" style="margin-top:9px">${
+        esc((r && r.error) || "No se pudo soltar. Intenta de nuevo.")}</div>`;
     };
 
     if ($("#b-avanzar")) $("#b-avanzar").onclick = async () => {
