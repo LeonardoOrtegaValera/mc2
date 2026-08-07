@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trabaja con MC2 · Electricistas y plomeros en Panamá</title>
+
+<!-- Esto es lo que hace que Google la encuentre. La app no lo tiene,
+     porque es una sola pantalla que se arma con codigo y el buscador
+     no la puede leer. Esta pagina si es texto de verdad. -->
+<meta name="description" content="MC2 busca electricistas y plomeros con idoneidad vigente en Ciudad de Panamá. Trabajos con precio cerrado, sin perseguir el pago. Regístrate en un minuto.">
+<meta name="robots" content="index, follow">
+<!-- ==== LAS DOS UNICAS LINEAS QUE DEPENDEN DEL DOMINIO ====
+     Si el dominio termina siendo otro, cambia esta y la de og:url
+     doce lineas mas abajo. Nada mas en toda la carpeta depende de la
+     direccion: todo lo demas usa rutas relativas. -->
+<link rel="canonical" href="https://mc2panama.com/contratistas/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_PA">
+<meta property="og:title" content="Trabaja con MC2 · Electricistas y plomeros">
+<meta property="og:description" content="Buscamos electricistas y plomeros con idoneidad vigente en Ciudad de Panamá.">
+<meta property="og:url" content="https://mc2panama.com/contratistas/">
+<meta name="theme-color" content="#0C447C">
+<link rel="icon" href="iconos/icono-192.png">
+
+<style>
+:root{
+  --azul:#0C447C; --azul-2:#185FA5; --azul-luz:#E6F1FB; --cielo:#85B7EB;
+  --naranja:#EF9F27; --verde:#1D9E75; --rojo:#E24B4A;
+  --negro:#2C2C2A; --gris:#5F5E5A; --gris-2:#888780; --gris-3:#D3D1C7;
+  --gris-luz:#F1EFE8; --blanco:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--gris-luz); color:var(--negro); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.envoltura{max-width:560px;margin:0 auto;background:var(--blanco);min-height:100vh}
+
+/* ---------- Portada ---------- */
+.hero{background:var(--azul);color:#fff;padding:calc(30px + env(safe-area-inset-top)) 24px 32px}
+.marca{font-size:26px;font-weight:800;letter-spacing:.5px}
+.marca span{color:var(--naranja)}
+.hero h1{font-size:30px;line-height:1.15;margin-top:22px;font-weight:800;letter-spacing:-.5px}
+.hero h1 em{color:var(--naranja);font-style:normal}
+.hero p{color:var(--azul-luz);margin-top:12px;font-size:15px}
+
+/* ---------- Puntos ---------- */
+.puntos{padding:24px;display:grid;gap:14px}
+.punto{display:flex;gap:12px;align-items:flex-start}
+.punto .n{
+  flex:0 0 26px;height:26px;border-radius:50%;background:var(--azul-luz);
+  color:var(--azul);font-weight:800;font-size:13px;display:flex;
+  align-items:center;justify-content:center;margin-top:1px;
+}
+.punto b{display:block;font-size:15px}
+.punto small{color:var(--gris);font-size:13.5px}
+
+/* ---------- Requisito ---------- */
+.requisito{
+  margin:0 24px 26px;background:var(--azul-luz);border-radius:12px;
+  padding:16px;font-size:14px;color:var(--azul);
+}
+.requisito b{display:block;margin-bottom:3px}
+
+/* ---------- Formulario ---------- */
+.form{padding:0 24px 40px}
+.form h2{font-size:20px;margin-bottom:4px}
+.form .ayuda-top{color:var(--gris);font-size:14px;margin-bottom:20px}
+label{display:block;font-size:14px;font-weight:600;margin:16px 0 6px}
+label .opt{font-weight:400;color:var(--gris-2)}
+input[type=text],input[type=tel],input[type=number],select,textarea{
+  width:100%;border:1px solid var(--gris-3);border-radius:10px;
+  padding:14px;font-size:16px;font-family:inherit;background:#fff;color:var(--negro);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--azul-2);border-color:transparent}
+textarea{resize:vertical;min-height:80px}
+.ayuda{color:var(--gris-2);font-size:12.5px;margin-top:5px}
+
+.oficios{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.oficio{
+  border:1.5px solid var(--gris-3);background:#fff;border-radius:12px;
+  padding:16px 10px;text-align:center;cursor:pointer;font-size:15px;
+  font-weight:600;color:var(--gris);font-family:inherit;
+}
+.oficio[aria-pressed=true]{border-color:var(--azul);background:var(--azul-luz);color:var(--azul)}
+
+.archivo{
+  border:1.5px dashed var(--gris-3);border-radius:12px;padding:18px;
+  text-align:center;color:var(--gris);font-size:14px;cursor:pointer;
+  display:block;background:#fff;width:100%;font-family:inherit;
+}
+.archivo.puesta{border-style:solid;border-color:var(--verde);color:var(--verde);font-weight:600}
+input[type=file]{position:absolute;left:-9999px}
+
+.enviar{
+  width:100%;background:var(--naranja);color:#412402;border:0;border-radius:12px;
+  padding:18px;font-size:17px;font-weight:700;margin-top:26px;cursor:pointer;
+  font-family:inherit;
+}
+.enviar:disabled{opacity:.6;cursor:default}
+
+.aviso{border-radius:10px;padding:13px 15px;font-size:14px;margin-top:16px;display:none}
+.aviso.mal{background:#FCEBEB;color:#A32D2D;display:block}
+.privacidad{color:var(--gris-2);font-size:12px;margin-top:16px;text-align:center;line-height:1.5}
+
+/* ---------- Gracias ---------- */
+.gracias{display:none;padding:60px 24px;text-align:center}
+.gracias .tic{
+  width:70px;height:70px;border-radius:50%;background:var(--verde);
+  margin:0 auto 22px;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:34px;
+}
+.gracias h2{font-size:24px;margin-bottom:10px}
+.gracias p{color:var(--gris);font-size:15px}
+
+footer{background:var(--negro);color:#9C9A94;padding:24px;font-size:12.5px;text-align:center}
+footer b{color:#fff;display:block;margin-bottom:5px;font-size:14px}
+</style>
+</head>
+
+<body>
+<div class="envoltura">
+
+  <header class="hero">
+    <div class="marca">MC<span>2</span></div>
+    <h1>El trabajo te llega <em>al celular.</em></h1>
+    <p>Buscamos electricistas y plomeros con idoneidad vigente en Ciudad de Panamá.</p>
+  </header>
+
+  <section class="puntos" aria-label="Cómo funciona">
+    <div class="punto">
+      <div class="n">1</div>
+      <div><b>Te llega el trabajo, no lo buscas</b>
+      <small>Un cliente pide el servicio desde su celular y le llega al contratista más cercano.</small></div>
+    </div>
+    <div class="punto">
+      <div class="n">2</div>
+      <div><b>Precio cerrado, sin regatear</b>
+      <small>El precio ya está puesto antes de que salgas. Nadie discute contigo al llegar.</small></div>
+    </div>
+    <div class="punto">
+      <div class="n">3</div>
+      <div><b>No persigues el pago</b>
+      <small>El cliente le paga a MC2 y MC2 te paga a ti.</small></div>
+    </div>
+  </section>
+
+  <div class="requisito">
+    <b>Un solo requisito para entrar</b>
+    Idoneidad vigente de la Junta Técnica. Es lo que le da respaldo al cliente
+    y lo que nos diferencia de cualquiera que ande ofreciendo servicios.
+  </div>
+
+  <main class="form" id="pantalla-form">
+    <h2>Regístrate</h2>
+    <p class="ayuda-top">Toma un minuto. Después te escribimos por WhatsApp y te explicamos todo.</p>
+
+    <form id="f" novalidate>
+      <label for="nombre">Tu nombre completo</label>
+      <input id="nombre" type="text" autocomplete="name" placeholder="Julio González" required>
+
+      <label for="tel">Tu celular (WhatsApp)</label>
+      <input id="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="6123-4567" required>
+
+      <label>¿En qué trabajas?</label>
+      <div class="oficios">
+        <button type="button" class="oficio" data-of="electricidad" aria-pressed="false">Electricidad</button>
+        <button type="button" class="oficio" data-of="plomeria" aria-pressed="false">Plomería</button>
+      </div>
+      <p class="ayuda">Puedes marcar los dos.</p>
+
+      <label for="idoneidad">Número de idoneidad</label>
+      <input id="idoneidad" type="text" placeholder="Ej: IE-12345" required>
+      <p class="ayuda">El que te dio la Junta Técnica. Lo verificamos antes de llamarte.</p>
+
+      <label for="zona">¿Por dónde te mueves?</label>
+      <select id="zona" required>
+        <option value="">Elige una…</option>
+        <option>Toda la ciudad</option>
+        <option>Costa del Este</option>
+        <option>Punta Pacífica</option>
+        <option>San Francisco</option>
+        <option>Bella Vista y Obarrio</option>
+        <option>Vía España y alrededores</option>
+        <option>San Miguelito</option>
+        <option>Panamá Oeste (Arraiján, La Chorrera)</option>
+        <option>Panamá Este (24 de Diciembre, Tocumen)</option>
+      </select>
+
+      <label for="anos">¿Cuántos años llevas en el oficio?</label>
+      <input id="anos" type="number" inputmode="numeric" min="0" max="70" placeholder="12">
+
+      <label for="foto">Foto de tu idoneidad <span class="opt">— opcional</span></label>
+      <label class="archivo" id="etiqueta-foto" for="foto">
+        Tocar para adjuntar la foto
+      </label>
+      <input id="foto" type="file" accept="image/*">
+      <p class="ayuda">Si la tienes a mano, adelantas el proceso. Si no, nos la mandas después.</p>
+
+      <label for="comentario">¿Algo que quieras contarnos? <span class="opt">— opcional</span></label>
+      <textarea id="comentario" maxlength="500" placeholder="Ej: tengo herramienta propia y transporte."></textarea>
+
+      <!-- Trampa para robots de spam. Una persona nunca ve este campo,
+           asi que si viene lleno, el envio es de una maquina. -->
+      <div style="position:absolute;left:-9999px" aria-hidden="true">
+        <label for="empresa-web">No llenar</label>
+        <input id="empresa-web" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="aviso" id="error"></div>
+
+      <button class="enviar" id="btn" type="submit">Enviar mi registro</button>
+
+      <p class="privacidad">
+        Tus datos son solo para contactarte sobre MC2. No los compartimos
+        con nadie ni los usamos para publicidad.
+      </p>
+    </form>
+  </main>
+
+  <section class="gracias" id="pantalla-gracias">
+    <div class="tic">&#10003;</div>
+    <h2>Listo, quedaste registrado</h2>
+    <p>Te vamos a escribir por WhatsApp en los próximos días.
+       Revisamos tu idoneidad y te explicamos cómo funciona todo.</p>
+  </section>
+
+  <footer>
+    <b>MC2 · Mantenimiento y Construcción 2.0</b>
+    Plomería, electricidad y mantenimiento en Ciudad de Panamá.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+// ---------------------------------------------------------------
+//  Conexion con Supabase, sin librerias.
+//  La llave de abajo es PUBLICA a proposito. Lo que protege los datos
+//  son las reglas dentro de la base de datos: con esta llave se puede
+//  registrar, pero NO se puede leer lo que registro nadie mas.
+// ---------------------------------------------------------------
+const URL_BASE = "https://mtghfuiihgqgncjeisyf.supabase.co";
+const LLAVE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10Z2hmdWlpaGdxZ25jamVpc3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3ODk3NjIsImV4cCI6MjEwMTM2NTc2Mn0.uVzlKX4v1mW2mz7AhDYc90FrLtwCHTcKpXsvy_tyuUs";
+
+const $ = (q) => document.querySelector(q);
+const oficios = new Set();
+
+// ---- Elegir oficios ----
+document.querySelectorAll(".oficio").forEach((b) => {
+  b.addEventListener("click", () => {
+    const o = b.dataset.of;
+    if (oficios.has(o)) { oficios.delete(o); b.setAttribute("aria-pressed", "false"); }
+    else { oficios.add(o); b.setAttribute("aria-pressed", "true"); }
+  });
+});
+
+// ---- Foto ----
+let archivo = null;
+$("#foto").addEventListener("change", (e) => {
+  archivo = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+  const et = $("#etiqueta-foto");
+  if (archivo) { et.textContent = "Foto adjuntada ✓  (tocar para cambiar)"; et.classList.add("puesta"); }
+  else { et.textContent = "Tocar para adjuntar la foto"; et.classList.remove("puesta"); }
+});
+
+function fallar(msg) {
+  const e = $("#error");
+  e.textContent = msg;
+  e.className = "aviso mal";
+  // Lo de desplazar es una comodidad, no una necesidad. Si el navegador
+  // no lo soporta, el mensaje igual tiene que verse.
+  try { if (e.scrollIntoView) e.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  catch (_) {}
+}
+
+// De donde llego la persona, para saber que canal funciona.
+// Ejemplo:  contratistas.html?de=instagram
+function origen() {
+  const p = new URLSearchParams(location.search).get("de");
+  if (p) return p.slice(0, 40);
+  const r = document.referrer || "";
+  if (r.includes("instagram")) return "instagram";
+  if (r.includes("facebook"))  return "facebook";
+  if (r.includes("whatsapp") || r.includes("wa.me")) return "whatsapp";
+  return "directo";
+}
+
+async function subirFoto() {
+  if (!archivo) return null;
+  if (archivo.size > 5 * 1024 * 1024) throw new Error("La foto pesa más de 5 MB. Toma una más liviana.");
+  const ext = (archivo.name.split(".").pop() || "jpg").toLowerCase().slice(0, 5);
+  const ruta = "sol-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9) + "." + ext;
+  const r = await fetch(URL_BASE + "/storage/v1/object/idoneidades/" + ruta, {
+    method: "POST",
+    headers: { apikey: LLAVE, Authorization: "Bearer " + LLAVE, "Content-Type": archivo.type || "image/jpeg" },
+    body: archivo,
+  });
+  if (!r.ok) return null;   // la foto es opcional: si falla, el registro sigue
+  return ruta;
+}
+
+$("#f").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  $("#error").className = "aviso";
+
+  // La trampa de spam
+  if ($("#empresa-web").value) return;
+
+  const nombre = $("#nombre").value.trim();
+  const tel    = $("#tel").value.trim();
+  const idon   = $("#idoneidad").value.trim();
+  const zona   = $("#zona").value;
+  const anos   = $("#anos").value;
+
+  if (nombre.length < 3)   return fallar("Escribe tu nombre completo.");
+  if (tel.replace(/\D/g, "").length < 7) return fallar("Escribe un celular válido, con WhatsApp.");
+  if (oficios.size === 0)  return fallar("Dinos si eres electricista, plomero o los dos.");
+  if (idon.length < 3)     return fallar("Necesitamos tu número de idoneidad de la Junta Técnica.");
+  if (!zona)               return fallar("Dinos por dónde te mueves.");
+
+  const btn = $("#btn");
+  btn.disabled = true;
+  btn.textContent = "Enviando…";
+
+  try {
+    let foto = null;
+    try { foto = await subirFoto(); } catch (e) { return fallar(e.message); }
+
+    const r = await fetch(URL_BASE + "/rest/v1/solicitudes_contratista", {
+      method: "POST",
+      headers: {
+        apikey: LLAVE,
+        Authorization: "Bearer " + LLAVE,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        nombre, telefono: tel,
+        oficios: [...oficios],
+        idoneidad_numero: idon,
+        zona,
+        anos_oficio: anos ? Number(anos) : null,
+        comentario: $("#comentario").value.trim() || null,
+        foto_idoneidad: foto,
+        origen: origen(),
+        estado: "nuevo",
+      }),
+    });
+
+    if (r.status === 409) {
+      return fallar("Ese celular ya está registrado. Si te equivocaste, escríbenos por WhatsApp.");
+    }
+    if (!r.ok) {
+      return fallar("No se pudo enviar. Revisa tu internet e intenta de nuevo.");
+    }
+
+    $("#pantalla-form").style.display = "none";
+    document.querySelector(".puntos").style.display = "none";
+    document.querySelector(".requisito").style.display = "none";
+    $("#pantalla-gracias").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+  } catch (e) {
+    fallar("No hay conexión. Revisa tu internet e intenta de nuevo.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Enviar mi registro";
+  }
+});
+})();
+</script>
+</body>
+</html>
