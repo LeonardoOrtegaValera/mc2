@@ -1262,8 +1262,178 @@ const API = {
 
   async borrarDemo() {
     try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
+  },
+
+  // ---- AVISOS AL CELULAR (7 de agosto de 2026) ----
+  async registrarCelular({ endpoint, p256dh, auth, dispositivo }) {
+    const c = await cliente();
+    if (!c) return null;
+    const { data: u } = await c.auth.getUser();
+    if (!u || !u.user) return null;
+    // Si este mismo celular ya estaba, se reemplaza. Sin esto el
+    // contratista recibiria cada aviso dos y tres veces.
+    await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
+    const { data } = await c.from("suscripciones_push").insert({
+      perfil_id: u.user.id, endpoint, p256dh, auth, dispositivo,
+    }).select().single();
+    return data || null;
+  },
+
+  async borrarCelular(endpoint) {
+    const c = await cliente();
+    if (!c) return null;
+    await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
+    return true;
   }
 };
+
+// Dibuja la caja de avisos arriba de la lista de trabajos.
+// Si ya estan activos no muestra nada: no hay que estorbar con algo
+// que el usuario ya resolvio.
+function pintarCajaAvisos(el) {
+  const caja = el.querySelector("#caja-avisos");
+  if (!caja) return;
+  const e = estadoAvisos();
+
+  if (e.estado === "activo") { caja.innerHTML = ""; return; }
+
+  if (!e.puede) {
+    caja.innerHTML = `
+      <div class="aviso aviso-naranja">
+        <b>&#128276; No te van a sonar los trabajos</b>
+        ${esc(mensajeAvisos(e))}
+      </div>`;
+    return;
+  }
+
+  caja.innerHTML = `
+    <div class="aviso aviso-azul">
+      <b>&#128276; Que te suene el celular</b>
+      Ahorita tienes que estar mirando la pantalla para enterarte de que
+      entro un trabajo. Activa los avisos y te suena aunque tengas la app
+      cerrada.
+      <div style="height:9px"></div>
+      <button class="btn btn-primario btn-chico" id="b-avisos">Activar avisos</button>
+    </div>`;
+
+  const b = caja.querySelector("#b-avisos");
+  if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Activando...";
+    const r = await activarAvisos();
+    if (r.ok) {
+      caja.innerHTML = `
+        <div class="aviso aviso-verde">
+          <b>&#9989; Listo, ya te van a sonar</b>
+          Te avisamos apenas entre un trabajo en tu zona, aunque tengas la
+          app cerrada.
+        </div>`;
+      return;
+    }
+    b.disabled = false; b.textContent = "Activar avisos";
+    const motivo = r.motivo === "rechazado"
+      ? "No diste permiso. Sin eso no te podemos avisar cuando entre un trabajo."
+      : mensajeAvisos({ motivo: r.motivo }) || "No se pudo activar. Intenta de nuevo.";
+    const p = document.createElement("div");
+    p.style.cssText = "margin-top:9px;font-size:12.5px";
+    p.textContent = motivo;
+    caja.querySelector(".aviso").appendChild(p);
+  };
+}
+
+// =====================================================================
+//  AVISOS AL CELULAR
+//  Pide permiso y registra el celular para que le lleguen trabajos
+//  aunque tenga la app cerrada.
+//
+//  OJO CON EL IPHONE: Apple solo entrega avisos si la app esta agregada
+//  a la pantalla de inicio. Desde Safari suelto no llega nada. Por eso
+//  se detecta y se le explica, en vez de dejarlo creyendo que activo
+//  algo que no funciona.
+// =====================================================================
+
+const VAPID_PUBLICA =
+  "BDOJmnEyQVOEmzb6hQxdgRSzx-W3m-pk-80exK77T7gC6stB0V_QpvanNm9B1S_evkPHrsBFWqNjMTFmJzvFAiQ";
+
+function esIPhone() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function appInstalada() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true;
+}
+
+function estadoAvisos() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) ||
+      !("Notification" in window)) {
+    return { puede: false, motivo: "navegador_viejo" };
+  }
+  if (esIPhone() && !appInstalada()) {
+    return { puede: false, motivo: "iphone_sin_instalar" };
+  }
+  if (Notification.permission === "granted") return { puede: true, estado: "activo" };
+  if (Notification.permission === "denied")  return { puede: false, motivo: "bloqueado" };
+  return { puede: true, estado: "sin_pedir" };
+}
+
+function mensajeAvisos(e) {
+  if (e.motivo === "iphone_sin_instalar")
+    return "Para que te lleguen los trabajos, primero agrega MC2 a tu pantalla de inicio: " +
+           "toca el boton de compartir de Safari y luego \u201cAgregar a pantalla de inicio\u201d. " +
+           "Despues abrela desde ahi y activa los avisos.";
+  if (e.motivo === "bloqueado")
+    return "Bloqueaste los avisos en este telefono. Para volver a activarlos entra a los " +
+           "ajustes del navegador para este sitio y permite las notificaciones.";
+  if (e.motivo === "navegador_viejo")
+    return "Este navegador no soporta avisos. Prueba con Chrome o con Safari actualizado.";
+  return "";
+}
+
+function llaveABytes(b64url) {
+  const relleno = "=".repeat((4 - (b64url.length % 4)) % 4);
+  const b64 = (b64url + relleno).replace(/-/g, "+").replace(/_/g, "/");
+  const crudo = atob(b64);
+  const bytes = new Uint8Array(crudo.length);
+  for (let i = 0; i < crudo.length; i++) bytes[i] = crudo.charCodeAt(i);
+  return bytes;
+}
+
+async function activarAvisos() {
+  const e = estadoAvisos();
+  if (!e.puede) return { ok: false, motivo: e.motivo };
+
+  let permiso = Notification.permission;
+  if (permiso !== "granted") {
+    try { permiso = await Notification.requestPermission(); }
+    catch (err) { return { ok: false, motivo: "error" }; }
+  }
+  if (permiso !== "granted") return { ok: false, motivo: "rechazado" };
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sus = await reg.pushManager.getSubscription();
+    if (!sus) {
+      sus = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: llaveABytes(VAPID_PUBLICA),
+      });
+    }
+    const j = sus.toJSON();
+    if (!j.keys || !j.keys.p256dh || !j.keys.auth) return { ok:false, motivo:"sin_llaves" };
+
+    await API.registrarCelular({
+      endpoint: sus.endpoint,
+      p256dh: j.keys.p256dh,
+      auth: j.keys.auth,
+      dispositivo: (navigator.userAgent || "").slice(0, 120),
+    });
+    return { ok: true };
+  } catch (err) {
+    console.warn("MC2: no se pudo activar los avisos", err);
+    return { ok: false, motivo: "error" };
+  }
+}
 
 // Llama una funcion guardada dentro de la base de datos.
 async function pedirFuncion(c, nombre, args) {
@@ -2281,6 +2451,8 @@ function vistaTrabajosCerca(ctx) {
       </div>
     </div>
     <div class="cont vista">
+      <div id="caja-avisos"></div>
+
       ${activos.length ? `
         <p class="seccion-tit">En curso</p>
         ${activos.map(t => tarjetaTrabajo(t, true)).join("")}
@@ -2298,7 +2470,9 @@ function vistaTrabajosCerca(ctx) {
         <div class="vacio">
           <span class="ico">&#128269;</span>
           No hay trabajos disponibles en tu zona ahorita.
-          <div style="font-size:12.5px;margin-top:8px">Te avisamos apenas entre uno.</div>
+          <div style="font-size:12.5px;margin-top:8px">${estadoAvisos().estado === "activo"
+            ? "Te suena el celular apenas entre uno."
+            : "Activa los avisos arriba para que te suene el celular."}</div>
         </div>`}
     </div>
     ${barra("cerca")}`;
@@ -2328,6 +2502,8 @@ function vistaTrabajosCerca(ctx) {
   }
 
   function montar(el, { ir, recargar }) {
+    pintarCajaAvisos(el);
+
     el.querySelectorAll("[data-abrir]").forEach(d => {
       d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
     });
