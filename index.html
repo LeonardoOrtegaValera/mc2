@@ -1241,6 +1241,20 @@ const API = {
     return true;
   },
 
+  // La licencia de gas del Cuerpo de Bomberos. Es un papel aparte de la
+  // idoneidad y lo da otra institucion, asi que se guarda aparte.
+  async guardarLicenciaGas(id, { numero, vence, estado }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({
+      licencia_gas_numero: numero || null,
+      licencia_gas_vence: vence || null,
+      licencia_gas_estado: estado
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
   async registrarReferencia(id, { nombre, telefono, resultado, notas }) {
     const c = await cliente();
     if (!c) return true;
@@ -3049,21 +3063,54 @@ const fecha = (iso) => {
   catch (e) { return ""; }
 };
 
-// Los 7 requisitos. Si falta uno, el contratista no ve trabajos.
+// LAS CUATRO QUE ABREN LA PUERTA.
+//
+// Antes eran siete e incluian RUC y poliza de seguro. El contratista
+// que MC2 busca —el independiente que se mueve, sin oficina y sin
+// planilla— casi nunca tiene poliza y muchas veces no tiene RUC.
+// Pedirle eso el primer dia era cerrarle la puerta al mercado al que
+// se apunta.
+//
+// Estas cuatro contestan las dos preguntas que de verdad le importan
+// al cliente: quien entra a mi casa, y sabe hacerlo. Y ninguna le
+// cuesta plata al contratista.
 const REQUISITOS = [
   ["ver_cedula",         "Cedula"],
-  ["ver_ruc",            "RUC"],
-  ["ver_seguro",         "Poliza de seguro"],
   ["ver_referencias",    "Dos referencias llamadas"],
   ["ver_prueba_tecnica", "Prueba tecnica"]
 ];
 
+// Estas NO impiden trabajar. Se anotan porque sirven: quien tiene RUC
+// puede facturar, y quien tiene poliza propia puede ir a trabajos
+// grandes. La cobertura del dia a dia la pone la poliza colectiva de
+// MC2, no el contratista.
+const OPCIONALES = [
+  ["ver_ruc",    "RUC"],
+  ["ver_seguro", "Poliza propia"]
+];
+
+// La idoneidad se pide SEGUN EL OFICIO, no a todo el mundo.
+//
+// Electricidad y plomeria si la piden. La plomeria en Panama toca
+// tuberia de gas y eso quedo muy regulado despues de varios
+// accidentes. Pintura, cerrajeria y A/C no.
+//
+// Y el gas ademas pide un SEGUNDO papel, de otra institucion: la
+// Licencia Tipo A del Cuerpo de Bomberos. Con la idoneidad de la Junta
+// Tecnica sola NO alcanza para tocar una instalacion de gas.
+//
+// Quien manda de verdad es la tabla de categorias en la base de datos
+// (requiere_idoneidad y requiere_licencia_gas). Esto de aqui es solo
+// para pintar la pantalla.
+const CATEGORIAS_CON_IDONEIDAD = ["electricidad", "plomeria", "gas"];
+const CATEGORIAS_CON_GAS       = ["gas"];
+
 function cuantosListos(c) {
   let n = REQUISITOS.filter(([k]) => c[k]).length;
-  if (c.idoneidad_estado === "aprobado") n++;
   if (c.antecedentes_estado === "aprobado") n++;
   return n;
 }
+const TOTAL_REQUISITOS = REQUISITOS.length + 1;   // +1 por antecedentes
 
 // ------------------------------------------------- 1. COLA DE VERIFICACION
 function vistaPanel(ctx) {
@@ -3090,7 +3137,7 @@ function vistaPanel(ctx) {
                 ? `<span class="etiqueta et-roja">Rechazado</span>`
                 : c.suspendido
                   ? `<span class="etiqueta et-roja">Suspendido</span>`
-                  : `<span class="etiqueta ${listos >= 5 ? "et-naranja" : "et-gris"}">${listos} de 7 requisitos</span>`}
+                  : `<span class="etiqueta ${listos >= 3 ? "et-naranja" : "et-gris"}">${listos} de ${TOTAL_REQUISITOS} requisitos</span>`}
           </div>
         </div>
         <span style="font-size:20px;color:var(--gris-2)">&rsaquo;</span>
@@ -3158,7 +3205,12 @@ function vistaContratistaDetalle(ctx) {
   };
 
   const listos = cuantosListos(c);
-  const completo = listos === 7;
+  const completo = listos === TOTAL_REQUISITOS;
+  // ¿Se anoto en un oficio que por ley pide idoneidad?
+  const necesitaIdoneidad = (c.cats || []).some(id => CATEGORIAS_CON_IDONEIDAD.includes(id));
+  const idoneidadOk = c.idoneidad_estado === "aprobado";
+  const necesitaGas = (c.cats || []).some(id => CATEGORIAS_CON_GAS.includes(id));
+  const gasOk = c.licencia_gas_estado === "aprobado";
   const activo = c.verificacion === "verificado" && !c.suspendido;
   const refs = c.referencias || [];
   const refsOk = refs.filter(r => r.llamada && r.resultado === "positiva").length;
@@ -3190,8 +3242,8 @@ function vistaContratistaDetalle(ctx) {
           No recibe trabajos.</div>`
       : `
         <div class="aviso ${completo ? "aviso-verde" : "aviso-naranja"}">
-          <b>${listos} de 7 requisitos</b>
-          ${completo ? "Ya puedes activarlo." : "No ve trabajos hasta completar los 7."}
+          <b>${listos} de ${TOTAL_REQUISITOS} requisitos</b>
+          ${completo ? "Ya puedes activarlo." : `No ve trabajos hasta completar los ${TOTAL_REQUISITOS}.`}
         </div>`}
 
       <div class="tarjeta plana">
@@ -3213,7 +3265,7 @@ function vistaContratistaDetalle(ctx) {
         </div>
       </div>
 
-      <p class="seccion-tit" style="margin-top:18px">Requisitos</p>
+      <p class="seccion-tit" style="margin-top:18px">Requisitos para trabajar</p>
       <div class="tarjeta">
         ${REQUISITOS.map(([k, t]) => fila(k, t, !!c[k])).join("")}
 
@@ -3229,9 +3281,14 @@ function vistaContratistaDetalle(ctx) {
         <div style="padding:13px 0 4px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
             <span style="flex:1;font-size:14px;font-weight:600">Idoneidad de la Junta Tecnica</span>
-            <span class="etiqueta ${c.idoneidad_estado === "aprobado" ? "et-verde" : "et-gris"}">
-              ${c.idoneidad_estado === "aprobado" ? "&#10004; Aprobada" : "Pendiente"}</span>
+            <span class="etiqueta ${idoneidadOk ? "et-verde" : necesitaIdoneidad ? "et-roja" : "et-gris"}">
+              ${idoneidadOk ? "&#10004; Aprobada" : necesitaIdoneidad ? "Obligatoria" : "No aplica"}</span>
           </div>
+          <p class="det" style="margin-bottom:9px">
+            ${necesitaIdoneidad
+              ? "Uno de sus oficios la exige por ley. Sin ella puede trabajar en los que no la piden, pero NO va a ver esos trabajos."
+              : "Sus oficios no la exigen. Solo se llena si la tiene."}
+          </p>
           <input id="i-num" type="text" placeholder="Numero del certificado"
                  value="${esc(c.idoneidad_numero || "")}" style="margin-bottom:7px">
           <input id="i-cat" type="text" placeholder="Categoria (ej: electricista general)"
@@ -3244,6 +3301,41 @@ function vistaContratistaDetalle(ctx) {
             <button class="btn btn-linea btn-chico" id="b-ido-no">Rechazar</button>
           </div>
         </div>
+      </div>
+
+      ${necesitaGas ? `
+      <p class="seccion-tit" style="margin-top:18px">Licencia de gas (Bomberos)</p>
+      <div class="tarjeta">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="flex:1;font-size:14px;font-weight:600">Licencia Tipo A</span>
+          <span class="etiqueta ${gasOk ? "et-verde" : "et-roja"}">
+            ${gasOk ? "&#10004; Aprobada" : "Obligatoria"}</span>
+        </div>
+        <p class="det" style="margin-bottom:9px">
+          Es un papel DISTINTO de la idoneidad y lo da otra institucion: el
+          Benemerito Cuerpo de Bomberos. Para tocar una instalacion de gas hacen
+          falta los dos. Las instalaciones siguen NFPA 54 y 58 y los Bomberos
+          hacen la prueba de hermeticidad.
+        </p>
+        <input id="i-gas-num" type="text" placeholder="Numero de la licencia"
+               value="${esc(c.licencia_gas_numero || "")}" style="margin-bottom:7px">
+        <label for="i-gas-vence" style="margin-top:4px">Vence</label>
+        <input id="i-gas-vence" type="date" value="${esc(c.licencia_gas_vence || "")}">
+        <div style="height:9px"></div>
+        <div class="fila-btn">
+          <button class="btn btn-suave btn-chico" id="b-gas-ok">Aprobar licencia</button>
+          <button class="btn btn-linea btn-chico" id="b-gas-no">Rechazar</button>
+        </div>
+      </div>` : ""}
+
+      <p class="seccion-tit" style="margin-top:18px">No hacen falta para trabajar</p>
+      <div class="tarjeta">
+        <p class="det" style="margin-bottom:9px">
+          Se anotan porque sirven, no porque se exijan. Quien tiene RUC puede facturar;
+          quien tiene poliza propia puede ir a trabajos grandes. La cobertura del dia a
+          dia la pone la poliza colectiva de MC2, no el contratista.
+        </p>
+        ${OPCIONALES.map(([k, t]) => fila(k, t, !!c[k])).join("")}
       </div>
 
       <p class="seccion-tit" style="margin-top:18px">
@@ -3318,6 +3410,18 @@ function vistaContratistaDetalle(ctx) {
     $("#b-ido-no").onclick = () => hacer(() => API.guardarIdoneidad(c.id, {
       numero: $("#i-num").value.trim(), categoria: $("#i-cat").value.trim(),
       vence: $("#i-vence").value || null, estado: "rechazado"
+    }));
+
+    if ($("#b-gas-ok")) $("#b-gas-ok").onclick = () => {
+      if (!$("#i-gas-num").value.trim()) return err("Escribe el numero de la licencia.");
+      hacer(() => API.guardarLicenciaGas(c.id, {
+        numero: $("#i-gas-num").value.trim(),
+        vence: $("#i-gas-vence").value || null, estado: "aprobado"
+      }));
+    };
+    if ($("#b-gas-no")) $("#b-gas-no").onclick = () => hacer(() => API.guardarLicenciaGas(c.id, {
+      numero: $("#i-gas-num").value.trim(),
+      vence: $("#i-gas-vence").value || null, estado: "rechazado"
     }));
 
     const anotar = (resultado) => {
