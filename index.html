@@ -257,7 +257,7 @@ const CONFIG = {
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
   MONEDA: "B/.",
-  WHATSAPP_SOPORTE: "50700000000", // cambia esto por tu numero cuando lo tengas
+  WHATSAPP_SOPORTE: "50760939346", // formato internacional, sin + ni espacios
   ZONAS: [
     "Costa del Este",
     "Punta Pacifica",
@@ -1066,9 +1066,22 @@ const API = {
       return t;
     }
     const { data: u } = await c.auth.getUser();
-    const { data } = await c.from("trabajos")
+    // DOS COSAS QUE ESTABAN MAL AQUI Y COSTARON UNA TARDE.
+    //
+    // 1. No se miraba "error". Si la base rechazaba el cambio —y lo
+    //    estaba rechazando siempre, por dos fallas en las reglas— aqui
+    //    no se enteraba nadie: data llegaba vacio y la app concluia
+    //    que otro tecnico se habia adelantado. Una mentira que mandaba
+    //    a buscar el problema al lugar equivocado.
+    //
+    // 2. .single() REVIENTA cuando no vuelve ninguna fila. O sea que
+    //    perder la carrera contra otro tecnico, que es lo normal y
+    //    esperable, llegaba como si fuera una falla. .maybeSingle()
+    //    devuelve null y ya.
+    const { data, error } = await c.from("trabajos")
       .update({ contratista_id:u.user.id, estado:"asignado" })
-      .eq("id", id).eq("estado","buscando").select().single();
+      .eq("id", id).eq("estado","buscando").select().maybeSingle();
+    if (error) throw new Error(error.message);
     return data ? normalizar(data) : null;
   },
 
@@ -2201,7 +2214,24 @@ function vistaTrabajos(ctx) {
 // ------------------------------------------------------------ 7. PERFIL
 function vistaPerfil(ctx) {
   const u = ctx.usuario || {};
-  const total = (ctx.trabajos || []).reduce((s, t) => s + (t.eco?.totalCliente || 0), 0);
+
+  // GASTADO ES LO QUE SALIO DEL BOLSILLO, NO LO QUE SE PIDIO.
+  //
+  // Antes esto sumaba TODOS los trabajos, sin mirar como terminaron.
+  // Alguien que pidio dos servicios y los cancelo a los cinco minutos
+  // veia "Gastado B/. 88.00" sin haber pagado un centavo. Y con razon
+  // desconfiaba: si la app se equivoca en lo unico que el puede
+  // verificar de memoria, por que le va a creer el resto.
+  //
+  // Solo cuenta lo que ya se pago. Un trabajo pedido, o en curso, o
+  // cancelado, todavia no es plata gastada.
+  const PAGADOS = ["pagado", "calificado", "en_garantia"];
+  const total = (ctx.trabajos || [])
+    .filter((t) => PAGADOS.includes(t.estado))
+    .reduce((s, t) => s + (t.eco?.totalCliente || 0), 0);
+
+  // Y los cancelados tampoco son "trabajos que tuve": no paso nada.
+  const cuantos = (ctx.trabajos || []).filter((t) => t.estado !== "cancelado").length;
   const html = `
     ${cab("Mi perfil")}
     <div class="cont vista">
@@ -2219,7 +2249,7 @@ function vistaPerfil(ctx) {
 
       <div style="display:flex;gap:10px">
         <div class="tarjeta plana" style="flex:1;text-align:center">
-          <div style="font-size:24px;font-weight:700;color:var(--azul)">${(ctx.trabajos || []).length}</div>
+          <div style="font-size:24px;font-weight:700;color:var(--azul)">${cuantos}</div>
           <div class="det">Trabajos</div>
         </div>
         <div class="tarjeta plana" style="flex:1;text-align:center">
@@ -2557,7 +2587,10 @@ function vistaTrabajosCerca(ctx) {
           const t = await API.aceptarTrabajo(b.dataset.aceptar);
           if (t) ir("c-trabajo", { id: t.id });
           else { b.disabled = false; b.textContent = "Ya lo tomo otro tecnico"; }
-        } catch (e) { b.disabled = false; b.textContent = "Aceptar trabajo"; }
+        } catch (e) {
+          b.disabled = false; b.textContent = "Aceptar trabajo";
+          alert(e && e.message ? e.message : "No se pudo aceptar. Intenta de nuevo.");
+        }
       };
     });
     el.querySelector("#b-disp").onclick = async () => {
@@ -2690,7 +2723,9 @@ function vistaTrabajoContratista(ctx) {
         }
         recargar();
       } catch (e) {
-        err("No se pudo aceptar. Puede que otro tecnico lo haya tomado.");
+        // Se muestra lo que dijo la base, no una suposicion. Si algun
+        // dia vuelve a fallar algo, se va a ver que fue.
+        err(e && e.message ? e.message : "No se pudo aceptar. Intenta de nuevo.");
         b.disabled = false; b.textContent = "Aceptar trabajo";
       }
     };
