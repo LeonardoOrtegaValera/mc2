@@ -1,0 +1,3667 @@
+<!DOCTYPE html>
+<html lang="es-PA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MC2 - Mantenimiento y Construccion 2.0</title>
+<meta name="description" content="Reparaciones de plomeria, electricidad y mantenimiento en Panama. Contratistas verificados, precio cerrado y garantia de 7 dias.">
+<meta name="theme-color" content="#0C447C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MC2">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./iconos/icono-192.png">
+<link rel="icon" href="./iconos/icono-192.png">
+<style>
+/* =====================================================================
+   MC2 — Estilos
+   Azul corporativo + naranja construccion. Mobile first.
+   ===================================================================== */
+
+:root{
+  --azul:#0C447C; --azul-2:#185FA5; --azul-3:#378ADD; --azul-luz:#E6F1FB;
+  --naranja:#EF9F27; --naranja-osc:#854F0B; --naranja-luz:#FAEEDA;
+  --verde:#1D9E75; --verde-osc:#27500A; --verde-luz:#EAF3DE;
+  --rojo:#E24B4A; --rojo-osc:#A32D2D; --rojo-luz:#FCEBEB;
+  --negro:#2C2C2A; --gris:#5F5E5A; --gris-2:#888780; --gris-3:#D3D1C7;
+  --gris-luz:#F1EFE8; --blanco:#FFFFFF;
+  --r:10px; --r-g:14px;
+  --sombra:0 1px 3px rgba(0,0,0,.08);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--gris-luz); color:var(--negro);
+  font-size:16px; line-height:1.5;
+  overscroll-behavior-y:contain;
+}
+#app{max-width:480px; margin:0 auto; background:var(--blanco); min-height:100vh;
+     display:flex; flex-direction:column; position:relative}
+
+/* ---------- Cabecera ----------
+   El padding de arriba respeta la barra de estado del iPhone.
+   Sin esto, el titulo y el boton de volver quedan DEBAJO de la hora
+   y del notch, y el boton no se puede tocar. */
+.cab{background:var(--azul); color:#fff;
+     padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 14px}
+.cab-fila{display:flex; align-items:center; gap:10px}
+.cab h1{font-size:18px; margin:0; font-weight:600}
+.cab .sub{font-size:12px; color:#85B7EB; margin-top:2px}
+.cab .saludo{font-size:12px; color:#85B7EB}
+.cab .pregunta{font-size:19px; font-weight:600; margin-top:2px}
+/* Area de toque grande: un boton de 44px es lo minimo comodo en un celular */
+.volver{background:none;border:0;color:#E6F1FB;font-size:24px;line-height:1;
+        min-width:44px;min-height:44px;margin-left:-10px;cursor:pointer;
+        display:flex;align-items:center;justify-content:center}
+.volver:active{opacity:.5}
+.chip-zona{margin-top:11px;background:var(--azul-2);border:0;border-radius:20px;
+  padding:7px 12px;color:#E6F1FB;font-size:12px;display:inline-flex;align-items:center;
+  gap:6px;cursor:pointer;font-family:inherit}
+
+/* ---------- Contenido ---------- */
+.cont{flex:1; padding:16px; padding-bottom:90px}
+.seccion-tit{font-size:13px;font-weight:600;color:var(--azul);margin:0 0 8px}
+.ayuda{font-size:12px;color:var(--gris-2);margin:6px 0 0}
+
+/* ---------- Rejilla de servicios ---------- */
+.rejilla{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.serv{background:var(--azul-luz);border:0;border-radius:var(--r-g);padding:15px 4px;
+  text-align:center;cursor:pointer;font-family:inherit;transition:transform .08s}
+.serv:active{transform:scale(.96)}
+.serv .ico{font-size:27px;line-height:1}
+.serv .txt{font-size:11.5px;color:var(--azul);font-weight:600;margin-top:6px;display:block}
+
+/* ---------- Tarjetas ---------- */
+.tarjeta{background:#fff;border:1px solid var(--gris-3);border-radius:var(--r-g);
+  padding:13px;margin-bottom:10px}
+.tarjeta.destacada{border:2px solid var(--naranja)}
+.tarjeta.plana{border:0;background:var(--gris-luz)}
+
+.item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.item .nom{font-size:14.5px;font-weight:600;margin:0}
+.item .det{font-size:12px;color:var(--gris-2);margin:3px 0 0}
+.item .precio{font-size:21px;font-weight:700;color:#042C53;white-space:nowrap}
+.item .neto{font-size:11px;color:#3B6D11;text-align:right;margin-top:2px}
+
+/* ---------- Botones ---------- */
+.btn{display:block;width:100%;border:0;border-radius:var(--r);padding:14px;
+  font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
+  transition:transform .08s, opacity .15s}
+.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primario{background:var(--naranja);color:#412402}
+.btn-azul{background:var(--azul);color:#fff}
+.btn-suave{background:var(--gris-luz);color:var(--negro)}
+.btn-linea{background:#fff;border:1px solid var(--gris-3);color:var(--negro)}
+.btn-chico{padding:10px;font-size:13.5px}
+.fila-btn{display:flex;gap:8px}
+.fila-btn .btn{flex:1}
+
+/* ---------- Formularios ---------- */
+label{display:block;font-size:13px;font-weight:600;color:var(--azul);margin:14px 0 6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid var(--gris-3);
+  border-radius:var(--r);font-size:16px;font-family:inherit;background:#fff;color:var(--negro)}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--azul-3);
+  box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+textarea{min-height:76px;resize:vertical}
+
+.opciones{display:flex;gap:7px}
+.opcion{flex:1;text-align:center;padding:11px 4px;border:1px solid var(--gris-3);
+  border-radius:var(--r);font-size:12.5px;cursor:pointer;background:#fff;
+  font-family:inherit;color:var(--gris)}
+.opcion.activa{border:2px solid var(--naranja);background:var(--naranja-luz);
+  color:var(--naranja-osc);font-weight:600}
+.opcion .ico{display:block;font-size:19px;margin-bottom:3px}
+
+/* ---------- Zona de foto ---------- */
+.foto-zona{background:var(--azul-luz);border:2px dashed var(--azul-3);
+  border-radius:var(--r-g);min-height:132px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;cursor:pointer;padding:14px;
+  text-align:center}
+.foto-zona .ico{font-size:32px}
+.foto-zona .t{font-size:13.5px;color:var(--azul);font-weight:600}
+.foto-zona .s{font-size:11.5px;color:var(--azul-2)}
+.foto-previa{width:100%;border-radius:var(--r-g);display:block;max-height:230px;
+  object-fit:cover}
+
+/* ---------- Avisos ---------- */
+.aviso{border-radius:var(--r-g);padding:12px 14px;font-size:13px;margin-bottom:12px;
+  line-height:1.5}
+.aviso-naranja{background:var(--naranja-luz);border:1px solid var(--naranja);color:var(--naranja-osc)}
+.aviso-verde{background:var(--verde-luz);border:1px solid var(--verde);color:var(--verde-osc)}
+.aviso-azul{background:var(--azul-luz);color:var(--azul)}
+.aviso-rojo{background:var(--rojo-luz);border:1px solid var(--rojo);color:var(--rojo-osc)}
+.aviso b{display:block;margin-bottom:3px}
+
+.etiqueta{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;
+  border-radius:20px;letter-spacing:.02em}
+.et-roja{background:var(--rojo-luz);color:var(--rojo-osc)}
+.et-naranja{background:var(--naranja-luz);color:var(--naranja-osc)}
+.et-verde{background:var(--verde-luz);color:var(--verde-osc)}
+.et-azul{background:var(--azul-luz);color:var(--azul)}
+.et-gris{background:var(--gris-luz);color:var(--gris)}
+
+/* ---------- Barra inferior ----------
+   El padding de abajo respeta la franja del boton de inicio del iPhone. */
+.barra{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--gris-3);
+  display:flex;max-width:480px;margin:0 auto;width:100%;
+  padding:8px 0 calc(10px + env(safe-area-inset-bottom, 0px))}
+.barra button{flex:1;background:none;border:0;cursor:pointer;font-family:inherit;
+  color:var(--gris-2);padding:2px}
+.barra button .ico{font-size:20px;display:block}
+.barra button .txt{font-size:10px;display:block;margin-top:1px}
+.barra button.activo{color:var(--azul);font-weight:600}
+
+/* ---------- Barra de progreso del trabajo ---------- */
+.pasos{display:flex;gap:4px;margin-bottom:6px}
+.pasos i{flex:1;height:5px;border-radius:3px;background:var(--gris-3)}
+.pasos i.ok{background:var(--verde)}
+.pasos-txt{display:flex;justify-content:space-between;font-size:10px;color:var(--gris-2);
+  margin-bottom:14px}
+.pasos-txt b{color:var(--verde-osc);font-weight:600}
+
+/* ---------- Resumen de dinero ---------- */
+.dinero{background:var(--gris-luz);border-radius:var(--r-g);padding:13px;margin:12px 0}
+.dinero .l{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0;
+  color:var(--gris)}
+.dinero .l.total{border-top:1px solid var(--gris-3);margin-top:5px;padding-top:9px;
+  font-weight:700;color:var(--negro);font-size:16px}
+
+/* ---------- Cinta de modo demo ---------- */
+.cinta-demo{background:var(--naranja);color:#412402;text-align:center;
+  font-size:11.5px;font-weight:700;padding:6px 10px;letter-spacing:.02em}
+
+/* ---------- Estados ---------- */
+.vacio{text-align:center;padding:46px 20px;color:var(--gris-2)}
+.vacio .ico{font-size:42px;display:block;margin-bottom:10px}
+.cargando{text-align:center;padding:40px;color:var(--gris-2);font-size:14px}
+.error-caja{background:var(--rojo-luz);border:1px solid var(--rojo);color:var(--rojo-osc);
+  border-radius:var(--r);padding:12px;font-size:13px;margin-bottom:12px}
+
+/* ---------- Aparecer ---------- */
+.vista{animation:entra .18s ease-out}
+@keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- Aviso de instalar ---------- */
+.instalar{position:fixed;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;
+  background:var(--azul);color:#fff;padding:14px 16px;display:flex;align-items:center;
+  gap:12px;z-index:50}
+.instalar .t{flex:1;font-size:13px;line-height:1.4}
+.instalar button{background:var(--naranja);color:#412402;border:0;border-radius:var(--r);
+  padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+.instalar .x{background:none;color:#85B7EB;padding:4px 8px;font-size:18px}
+
+</style>
+</head>
+<body>
+<div id="app"><div class="cargando">Cargando MC2...</div></div>
+<noscript><div style="padding:24px;text-align:center;font-family:sans-serif">
+<h1 style="color:#0C447C">MC2</h1><p>Activa JavaScript para usar la app.</p></div></noscript>
+<script>
+(function(){
+"use strict";
+var __M = {};
+
+/* ===== config.js ===== */
+__M["config"] = (function(){
+// =====================================================================
+//  MC2 — CONFIGURACION
+//  Leo: este es el UNICO archivo que vas a tocar en toda la app.
+//  Son dos lineas. Nada mas. Todo lo demas lo manejo yo.
+//
+//  Mientras estas dos lineas esten vacias, la app funciona en MODO DEMO
+//  con datos de prueba. Puedes abrirla y usarla sin configurar nada.
+// =====================================================================
+const CONFIG = {
+
+  // 1) Direccion de tu proyecto de Supabase
+  SUPABASE_URL: "https://mtghfuiihgqgncjeisyf.supabase.co",
+
+  // 2) Llave publica de Supabase (la "anon public" del formato clasico).
+  //
+  //    OJO CON ESTO, que nos costo tiempo: Supabase tiene dos formatos de
+  //    llave publica. La nueva ("sb_publishable_...") sirve para LEER datos
+  //    pero la libreria de conexion la rechaza al registrar usuarios.
+  //    Por eso usamos la clasica, la que empieza con "eyJ".
+  //    Esta en Settings -> API Keys -> pestana "Legacy anon, service_role".
+  //
+  //    Es publica a proposito: lo que protege los datos son las reglas
+  //    dentro de la base de datos, no esconder esta llave.
+  //    La llave "secret" NO va aqui. Esa no sale del panel nunca.
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10Z2hmdWlpaGdxZ25jamVpc3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3ODk3NjIsImV4cCI6MjEwMTM2NTc2Mn0.uVzlKX4v1mW2mz7AhDYc90FrLtwCHTcKpXsvy_tyuUs",
+
+
+  // ---- PALANCA DE COBRO ----
+  // Cambia SOLO esta palabra para cambiar como cobra la app entera.
+  // Las tres opciones son:
+  //
+  //   "al_final"    El cliente no paga nada por adelantado. Paga todo
+  //                 cuando el trabajo esta terminado.  <- ACTIVA
+  //
+  //   "50_50"       Paga la mitad al pedir y la mitad al terminar.
+  //
+  //   "adelantado"  Paga todo al pedir. MC2 le retiene la plata al
+  //                 contratista hasta que el cliente apruebe.
+  //
+  // Si un contratista se queja de que un cliente no le pago, cambia
+  // esto a "adelantado", guarda, y vuelve a publicar. Nada mas.
+  COBRO: "al_final",
+
+
+  // ---- De aqui para abajo no hace falta que toques nada ----
+
+  VERSION: "1.5",
+
+  MARCA: "MC2",
+  NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
+  MONEDA: "B/.",
+  WHATSAPP_SOPORTE: "50760939346", // formato internacional, sin + ni espacios
+  ZONAS: [
+    "Costa del Este",
+    "Punta Pacifica",
+    "San Francisco",
+    "Bella Vista",
+    "Obarrio",
+    "Otra zona"
+  ]
+};
+
+// true = la app esta conectada a Supabase de verdad
+// false = la app corre con datos de prueba (modo demo)
+const HAY_SUPABASE = Boolean(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
+
+return { CONFIG, HAY_SUPABASE };
+})();
+
+
+/* ===== datos.js ===== */
+__M["datos"] = (function(){
+// =====================================================================
+//  MC2 — CAPA DE DATOS
+//  Habla con Supabase si esta configurado. Si no, usa datos de prueba
+//  guardados en el propio celular (modo demo).
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG, HAY_SUPABASE } = __M["config"];
+
+// ---------------------------------------------------------------- reglas
+// Espejo exacto de las funciones del schema de Supabase.
+// Si cambias un numero aqui, cambialo tambien en la tabla "parametros".
+const REGLAS = {
+  comision: { bronce: 12, plata: 10, oro: 8, platino: 6, recurrente: 5 },
+  comisionMinima: 3,
+  tarifa: { t1: 2, t2: 6, t3: 10, pct: 4 },
+  umbral: { u1: 40, u2: 100, u3: 300 },
+  tarifaTopePct: 10,
+  anticipoPct: 50,
+  diasGarantia: 7,
+  ratingMinimoPH: 4.5
+};
+const NIVELES = {
+  bronce:  { nombre:"Bronce",  min:0,   rating:0,    pct:12 },
+  plata:   { nombre:"Plata",   min:11,  rating:4.5,  pct:10 },
+  oro:     { nombre:"Oro",     min:41,  rating:4.7,  pct:8  },
+  platino: { nombre:"Platino", min:101, rating:4.8,  pct:6  }
+};
+
+const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+function calcularTarifaCliente(base, { suscrito = false, exento = false } = {}) {
+  base = Number(base) || 0;
+  if (suscrito || exento) return 0;
+  let escalon;
+  if (base < REGLAS.umbral.u1) escalon = REGLAS.tarifa.t1;
+  else if (base <= REGLAS.umbral.u2) escalon = REGLAS.tarifa.t2;
+  else if (base <= REGLAS.umbral.u3) escalon = REGLAS.tarifa.t3;
+  else escalon = r2((base * REGLAS.tarifa.pct) / 100);
+  return r2(Math.min(escalon, (base * REGLAS.tarifaTopePct) / 100));
+}
+function calcularComision(base, nivel = "bronce", recurrente = false) {
+  base = Number(base) || 0;
+  const pct = recurrente ? REGLAS.comision.recurrente : (REGLAS.comision[nivel] ?? REGLAS.comision.bronce);
+  let c = r2((base * pct) / 100);
+  if (c < REGLAS.comisionMinima) c = REGLAS.comisionMinima;
+  if (c > base) c = base;
+  return { pct, monto: c };
+}
+
+// Cuanto se cobra por adelantado, segun la palanca COBRO de config.js
+function porcentajeAnticipo(cobro = CONFIG.COBRO) {
+  if (cobro === "adelantado") return 100;
+  if (cobro === "50_50") return REGLAS.anticipoPct;
+  return 0; // "al_final"
+}
+function economia(base, opts = {}) {
+  base = Number(base) || 0;
+  const tarifa = calcularTarifaCliente(base, opts);
+  const com = calcularComision(base, opts.nivel, opts.recurrente);
+  const total = r2(base + tarifa);
+  const anticipo = r2((total * porcentajeAnticipo(opts.cobro)) / 100);
+  const saldo = r2(total - anticipo);
+  return {
+    base: r2(base), tarifa, totalCliente: total,
+    anticipo, saldo,
+    comisionPct: com.pct, comision: com.monto,
+    netoContratista: r2(base - com.monto),
+    ingresoMC2: r2(com.monto + tarifa)
+  };
+}
+
+// sube de nivel segun trabajos y estrellas (espejo de recalcular_nivel en SQL)
+function nivelPara(trabajos, rating, esFundador = false) {
+  let n = "bronce";
+  if (trabajos > 100 && rating >= 4.8) n = "platino";
+  else if (trabajos > 40 && rating >= 4.7) n = "oro";
+  else if (trabajos > 10 && rating >= 4.5) n = "plata";
+  if (esFundador && (n === "bronce" || n === "plata")) n = "oro";
+  return n;
+}
+function faltaParaSubir(trabajos, rating) {
+  const orden = ["bronce","plata","oro","platino"];
+  const actual = nivelPara(trabajos, rating);
+  const sig = orden[orden.indexOf(actual) + 1];
+  if (!sig) return null;
+  return { nivel: NIVELES[sig].nombre, faltan: Math.max(0, NIVELES[sig].min - trabajos), pct: NIVELES[sig].pct };
+}
+const money = (n) => `${CONFIG.MONEDA} ${(Number(n) || 0).toFixed(2)}`;
+
+// ---------------------------------------------------------------- catalogo
+const CATEGORIAS = [
+  { id: "plomeria",     nombre: "Plomeria",     ico: "\u{1F6BF}" },
+  { id: "electricidad", nombre: "Electricidad", ico: "⚡"     },
+  { id: "aire",         nombre: "A/C",          ico: "❄️" },
+  { id: "pintura",      nombre: "Pintura",      ico: "\u{1F3A8}" },
+  { id: "cerrajeria",   nombre: "Cerrajeria",   ico: "\u{1F511}" },
+  { id: "otros",        nombre: "Otros",        ico: "\u{1F527}" }
+];
+const SERVICIOS = [
+  { id:"s1",  cat:"plomeria",     nombre:"Destapar fregador o inodoro", precio:45, min:60, incluye:"Mano de obra y destapador", exento:false },
+  { id:"s2",  cat:"plomeria",     nombre:"Cambio de empaque de llave",  precio:35, min:45, incluye:"Mano de obra y empaque",    exento:false },
+  { id:"s3",  cat:"plomeria",     nombre:"Cambio de llave de lavamanos",precio:55, min:60, incluye:"Mano de obra e instalacion",exento:false },
+  { id:"s4",  cat:"plomeria",     nombre:"Mecanismo de tanque",         precio:65, min:60, incluye:"Mano de obra y mecanismo",  exento:false },
+  { id:"s5",  cat:"electricidad", nombre:"Tomacorriente o interruptor", precio:40, min:45, incluye:"Mano de obra y pieza",      exento:false },
+  { id:"s6",  cat:"electricidad", nombre:"Cambio de breaker",           precio:60, min:60, incluye:"Mano de obra y breaker",    exento:false },
+  { id:"s7",  cat:"electricidad", nombre:"Instalar lampara o abanico",  precio:50, min:75, incluye:"Mano de obra e instalacion",exento:false },
+  { id:"s8",  cat:"aire",         nombre:"Limpieza de A/C split",       precio:55, min:75, incluye:"Lavado de evaporadora y filtros", exento:false },
+  { id:"s9",  cat:"cerrajeria",   nombre:"Cambio de cerradura",         precio:65, min:60, incluye:"Mano de obra e instalacion",exento:false },
+  { id:"s10", cat:"otros",        nombre:"Visita de diagnostico",       precio:25, min:30, incluye:"Revision. Se abona al trabajo.", exento:true },
+  { id:"s11", cat:"pintura",      nombre:"Pintura de area",             precio:null, rango:[150,800] },
+  { id:"s12", cat:"plomeria",     nombre:"Fuga o dano mayor",           precio:null, rango:[80,400] },
+  { id:"s13", cat:"otros",        nombre:"Otro trabajo",                precio:null, rango:[50,500] }
+];
+const serviciosDe = (cat) => SERVICIOS.filter(s => s.cat === cat);
+const servicioPorId = (id) => SERVICIOS.find(s => s.id === id) || null;
+
+// ---------------------------------------------------------------- catalogo vivo
+// Los precios de arriba son solo el respaldo por si no hay internet.
+// Cuando hay conexion, mandan los que Leo tenga puestos en Supabase.
+//
+// LEO: para cambiar un precio no necesitas tocar nada de esto.
+// Entra a Supabase -> Table Editor -> tabla "servicios" -> doble clic
+// en la columna "precio_fijo" y escribe el numero nuevo. Se guarda solo
+// y la app lo toma en el siguiente refresco.
+let catalogoCargado = false;
+async function cargarCatalogo() {
+  const c = await cliente();
+  if (!c) return false;
+  try {
+    const [rc, rs] = await Promise.all([
+      c.from("categorias").select("*").eq("activa", true).order("orden"),
+      c.from("servicios").select("*").eq("activo", true).order("orden")
+    ]);
+    const cats = rc.data, servs = rs.data;
+
+    // Si no llego nada, decimos que fallo. Antes esto devolvia "listo"
+    // aunque no hubiera traido un solo precio, y eso escondia el problema.
+    if (rc.error || rs.error || !Array.isArray(servs) || !servs.length) {
+      console.warn("MC2: el catalogo no cargo, uso los precios de respaldo.",
+                   rc.error || rs.error);
+      return false;
+    }
+
+    if (Array.isArray(cats) && cats.length) {
+      const iconos = Object.fromEntries(CATEGORIAS.map(x => [x.id, x.ico]));
+      CATEGORIAS.length = 0;
+      for (const x of cats) {
+        CATEGORIAS.push({ id: x.id, nombre: x.nombre, ico: iconos[x.id] || "\u{1F527}" });
+      }
+    }
+
+    if (Array.isArray(servs) && servs.length) {
+      SERVICIOS.length = 0;
+      for (const s of servs) {
+        SERVICIOS.push({
+          id: s.id,
+          cat: s.categoria_id,
+          nombre: s.nombre,
+          precio: s.precio_fijo != null ? Number(s.precio_fijo) : null,
+          min: s.duracion_min || 60,
+          incluye: s.incluye || "",
+          exento: !!s.exento_tarifa,
+          rango: (s.rango_min != null && s.rango_max != null)
+            ? [Number(s.rango_min), Number(s.rango_max)] : [50, 500]
+        });
+      }
+    }
+    catalogoCargado = true;
+    return true;
+  } catch (e) {
+    console.warn("MC2: no se pudo cargar el catalogo, uso los precios de respaldo.", e);
+    return false;
+  }
+}
+const ESTADOS = ["buscando","asignado","en_camino","trabajando","listo","pagado","calificado"];
+const ESTADO_TXT = {
+  buscando:"Buscando tecnico", asignado:"Tecnico asignado", en_camino:"En camino",
+  trabajando:"Trabajando", listo:"Listo", pagado:"Pagado", calificado:"Terminado",
+  cancelado:"Cancelado"
+};
+const URGENCIA_TXT = { normal:"Normal", urgente:"Urgente", emergencia:"Emergencia" };
+
+// ---------------------------------------------------------------- almacen demo
+const LLAVE = "mc2_demo_v2";
+
+const CONTRATISTAS_DEMO = [
+  { id:"c1", nombre:"Julio Gonzalez",  rating:4.9, trabajos:127, nivel:"oro",   cats:["plomeria","otros"] },
+  { id:"c2", nombre:"Ricardo Mendoza", rating:4.7, trabajos:64,  nivel:"plata", cats:["electricidad","otros"] },
+  { id:"c3", nombre:"Ana Cedeno",      rating:4.8, trabajos:91,  nivel:"oro",   cats:["aire","electricidad"] },
+  { id:"c4", nombre:"Marcos Bethancourt", rating:4.6, trabajos:38, nivel:"plata", cats:["cerrajeria","otros"] },
+  { id:"c5", nombre:"Yaritza Perez",   rating:5.0, trabajos:12,  nivel:"plata", cats:["pintura","otros"] }
+];
+
+// trabajos de prueba que ve el contratista al abrir la app
+function pendientesSemilla() {
+  const ahora = Date.now();
+  const hace = (min) => new Date(ahora - min * 60000).toISOString();
+  return [
+    { id:"p1", folio:"MC2-000101", servicioId:"s1", categoria:"plomeria",
+      tipoPropiedad:"ph", urgencia:"emergencia", direccion:"PH Vista Marina, Punta Pacifica",
+      detalle:"Torre B, piso 9, apto 902", descripcion:"El agua sale por debajo del gabinete.",
+      distancia:2.1, estado:"buscando", creado:hace(6) },
+    { id:"p2", folio:"MC2-000102", servicioId:"s2", categoria:"plomeria",
+      tipoPropiedad:"residencial", urgencia:"urgente", direccion:"Costa del Este, Ave. Centenario",
+      detalle:"Casa 14", descripcion:"La llave del lavamanos gotea.",
+      distancia:3.4, estado:"buscando", creado:hace(22) },
+    { id:"p3", folio:"MC2-000103", servicioId:"s4", categoria:"plomeria",
+      tipoPropiedad:"ph", urgencia:"normal", direccion:"PH Los Cedros, San Francisco",
+      detalle:"Torre A, piso 3", descripcion:"El tanque no llena bien.",
+      distancia:5.8, estado:"buscando", creado:hace(70) },
+    { id:"p4", folio:"MC2-000104", servicioId:"s5", categoria:"electricidad",
+      tipoPropiedad:"comercial", urgencia:"urgente", direccion:"Local 12, Obarrio",
+      detalle:"Planta baja", descripcion:"Dos tomacorrientes sin corriente.",
+      distancia:4.2, estado:"buscando", creado:hace(35) }
+  ];
+}
+
+function nuevoAlmacen() {
+  return { usuario:null, contratista:null, trabajos:[], pendientes:pendientesSemilla(), retiros:[] };
+}
+
+// Si el navegador bloquea el almacenamiento (pasa al abrir el archivo con
+// doble clic, o en modo incognito), guardamos en memoria. La app sigue
+// funcionando; lo unico es que al recargar se pierden los datos de prueba.
+let memoria = null;
+
+function leerDemo() {
+  try {
+    const raw = localStorage.getItem(LLAVE);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (!d.pendientes) d.pendientes = pendientesSemilla();
+      if (!d.retiros) d.retiros = [];
+      return d;
+    }
+    if (memoria) return memoria;
+  } catch (e) {
+    if (memoria) return memoria;
+  }
+  memoria = nuevoAlmacen();
+  return memoria;
+}
+
+function guardarDemo(d) {
+  memoria = d;
+  try { localStorage.setItem(LLAVE, JSON.stringify(d)); } catch (e) { /* sin espacio */ }
+}
+const idNuevo = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+function contratistaPara(cat) {
+  const aptos = CONTRATISTAS_DEMO.filter(c => c.cats.includes(cat));
+  const lista = aptos.length ? aptos : CONTRATISTAS_DEMO;
+  return lista.slice().sort((a,b) => b.rating - a.rating)[0];
+}
+
+// =====================================================================
+//  CONEXION A SUPABASE, SIN LIBRERIAS EXTERNAS
+//
+//  Antes esto descargaba una libreria desde un servidor de terceros.
+//  Fallaba: cargaba a medias y el registro de usuarios nunca funcionaba.
+//  Ahora hablamos directo con Supabase por su interfaz web. Menos codigo,
+//  mas rapido, y sin depender de que otro servidor este de buenas.
+//
+//  Leo: no necesitas tocar nada de aqui.
+// =====================================================================
+
+const LLAVE_SESION = "mc2_sesion";
+
+function leerSesion() {
+  try { return JSON.parse(localStorage.getItem(LLAVE_SESION) || "null"); }
+  catch (e) { return null; }
+}
+function guardarSesion(s) {
+  try {
+    if (s) localStorage.setItem(LLAVE_SESION, JSON.stringify(s));
+    else localStorage.removeItem(LLAVE_SESION);
+  } catch (e) { /* almacenamiento bloqueado */ }
+}
+
+function mensajeDeError(j, respuesta) {
+  return j?.error_description || j?.msg || j?.message || j?.error
+      || `Error ${respuesta?.status || ""}`.trim();
+}
+
+function crearCliente(url, llave) {
+  const base = String(url).replace(/\/+$/, "");
+  let sesion = leerSesion();
+
+  const cabeceras = (extra = {}) => ({
+    apikey: llave,
+    Authorization: "Bearer " + (sesion?.access_token || llave),
+    ...extra
+  });
+
+  async function pedir(ruta, opciones = {}, reintentar = true) {
+    const r = await fetch(base + ruta, opciones);
+    // Si el permiso vencio, renovamos y repetimos una sola vez.
+    if (r.status === 401 && sesion?.refresh_token && reintentar) {
+      const ok = await renovar();
+      if (ok) {
+        opciones.headers = { ...opciones.headers, ...cabeceras() };
+        return pedir(ruta, opciones, false);
+      }
+    }
+    return r;
+  }
+
+  async function renovar() {
+    try {
+      const r = await fetch(`${base}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { apikey: llave, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: sesion.refresh_token })
+      });
+      if (!r.ok) { sesion = null; guardarSesion(null); return false; }
+      const j = await r.json();
+      sesion = j; guardarSesion(j);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // ---------------------------------------------------------- auth
+  const auth = {
+    async signUp({ email, password }) {
+      try {
+        const r = await fetch(`${base}/auth/v1/signup`, {
+          method: "POST",
+          headers: { apikey: llave, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return { data: {}, error: { message: mensajeDeError(j, r) } };
+        if (j.access_token) { sesion = j; guardarSesion(j); }
+        const user = j.user || j;
+        return { data: { user, session: j.access_token ? j : null }, error: null };
+      } catch (e) {
+        return { data: {}, error: { message: "Failed to fetch: " + e.message } };
+      }
+    },
+
+    async signInWithPassword({ email, password }) {
+      try {
+        const r = await fetch(`${base}/auth/v1/token?grant_type=password`, {
+          method: "POST",
+          headers: { apikey: llave, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return { data: {}, error: { message: mensajeDeError(j, r) } };
+        sesion = j; guardarSesion(j);
+        return { data: { user: j.user, session: j }, error: null };
+      } catch (e) {
+        return { data: {}, error: { message: "Failed to fetch: " + e.message } };
+      }
+    },
+
+    async signOut() {
+      try {
+        if (sesion?.access_token) {
+          await fetch(`${base}/auth/v1/logout`, { method: "POST", headers: cabeceras() });
+        }
+      } catch (e) { /* igual cerramos local */ }
+      sesion = null; guardarSesion(null);
+      return { error: null };
+    },
+
+    async getUser() {
+      if (!sesion?.access_token) return { data: { user: null }, error: null };
+      try {
+        const r = await pedir("/auth/v1/user", { headers: cabeceras() });
+        if (!r.ok) { sesion = null; guardarSesion(null); return { data: { user: null }, error: null }; }
+        return { data: { user: await r.json() }, error: null };
+      } catch (e) {
+        return { data: { user: null }, error: null };
+      }
+    }
+  };
+
+  // ------------------------------------------------- consultas a tablas
+  class Consulta {
+    constructor(tabla) {
+      this.tabla = tabla; this.metodo = "GET"; this.cols = "*";
+      this.filtros = []; this.orden = null; this.tope = null;
+      this.cuerpo = null; this.uno = false; this.devolver = false;
+    }
+    select(c = "*") {
+      if (this.metodo === "GET") this.cols = c; else this.devolver = true;
+      return this;
+    }
+    insert(o) { this.metodo = "POST"; this.cuerpo = o; return this; }
+    update(o) { this.metodo = "PATCH"; this.cuerpo = o; return this; }
+    eq(c, v) { this.filtros.push(`${c}=eq.${encodeURIComponent(v)}`); return this; }
+    in(c, arr) {
+      this.filtros.push(`${c}=in.(${arr.map(x => encodeURIComponent(x)).join(",")})`);
+      return this;
+    }
+    order(c, o = {}) { this.orden = `${c}.${o.ascending === false ? "desc" : "asc"}`; return this; }
+    limit(n) { this.tope = n; return this; }
+    single() { this.uno = true; return this; }
+    then(ok, mal) { return this.ejecutar().then(ok, mal); }
+
+    async ejecutar() {
+      const partes = [...this.filtros];
+      if (this.metodo === "GET") partes.unshift("select=" + encodeURIComponent(this.cols));
+      if (this.orden) partes.push("order=" + this.orden);
+      if (this.tope) partes.push("limit=" + this.tope);
+      const ruta = `/rest/v1/${this.tabla}` + (partes.length ? "?" + partes.join("&") : "");
+
+      const cab = cabeceras({ "Content-Type": "application/json" });
+      if (this.uno) cab.Accept = "application/vnd.pgrst.object+json";
+      if (this.metodo !== "GET") {
+        cab.Prefer = this.devolver ? "return=representation" : "return=minimal";
+      }
+
+      try {
+        const r = await pedir(ruta, {
+          method: this.metodo,
+          headers: cab,
+          body: this.cuerpo ? JSON.stringify(this.cuerpo) : undefined
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          return { data: null, error: { message: mensajeDeError(j, r) } };
+        }
+        if (r.status === 204) return { data: null, error: null };
+        const txt = await r.text();
+        return { data: txt ? JSON.parse(txt) : null, error: null };
+      } catch (e) {
+        return { data: null, error: { message: "Failed to fetch: " + e.message } };
+      }
+    }
+  }
+
+  // ---------------------------------------------------------- archivos
+  const storage = {
+    from(cubeta) {
+      return {
+        async upload(ruta, archivo, opciones = {}) {
+          try {
+            const cab = cabeceras();
+            if (opciones.upsert) cab["x-upsert"] = "true";
+            const r = await fetch(`${base}/storage/v1/object/${cubeta}/${ruta}`, {
+              method: "POST", headers: cab, body: archivo
+            });
+            if (!r.ok) {
+              const j = await r.json().catch(() => ({}));
+              return { data: null, error: { message: mensajeDeError(j, r) } };
+            }
+            return { data: await r.json().catch(() => ({})), error: null };
+          } catch (e) {
+            return { data: null, error: { message: e.message } };
+          }
+        }
+      };
+    }
+  };
+
+  // Llamar una funcion que vive dentro de la base de datos.
+  // Se usa para activar y rechazar contratistas: la funcion vuelve a
+  // comprobar el rol alla adentro, asi que no basta con saber la direccion.
+  async function rpc(nombre, args = {}) {
+    try {
+      const r = await pedir(`/rest/v1/rpc/${nombre}`, {
+        method: "POST",
+        headers: cabeceras({ "Content-Type": "application/json" }),
+        body: JSON.stringify(args)
+      });
+      const txt = await r.text();
+      const j = txt ? JSON.parse(txt) : null;
+      if (!r.ok) return { data: null, error: { message: mensajeDeError(j, r) } };
+      return { data: j, error: null };
+    } catch (e) {
+      return { data: null, error: { message: "Failed to fetch: " + e.message } };
+    }
+  }
+
+  return { auth, storage, rpc, from: (t) => new Consulta(t) };
+}
+
+let sb = null;
+let sbError = null;
+
+async function cliente() {
+  if (!HAY_SUPABASE) return null;
+  if (sb) return sb;
+  try {
+    sb = crearCliente(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    return sb;
+  } catch (e) {
+    sbError = e;
+    console.error("MC2: no se pudo conectar a Supabase, sigo en modo demo.", e);
+    return null;
+  }
+}
+
+// El telefono es la identidad. Internamente lo convertimos a un correo
+// tecnico para no tener que pagar SMS en el arranque. El usuario nunca lo ve.
+const telAcorreo = (tel) => `${String(tel).replace(/\D/g, "")}@mc2.app`;
+const modoDemo = () => !HAY_SUPABASE || !!sbError;
+
+// ---------------------------------------------------------------- API
+const API = {
+
+  // ============================== sesion ==============================
+  async sesion() {
+    const c = await cliente();
+    if (!c) return leerDemo().usuario;
+    try {
+      const { data } = await c.auth.getUser();
+      if (!data?.user) return null;
+      const { data: p } = await c.from("perfiles").select("*").eq("id", data.user.id).single();
+      return p ? { id:p.id, nombre:p.nombre, telefono:p.telefono, rol:p.rol } : null;
+    } catch (e) { return null; }
+  },
+
+  async registrar({ nombre, telefono, clave, rol = "cliente", cedula = "", ruc = "", cats = [] }) {
+    const c = await cliente();
+
+    if (!c) {
+      const d = leerDemo();
+      d.usuario = { id:"u_demo", nombre, telefono, rol };
+      if (rol === "contratista") {
+        d.contratista = {
+          id:"u_demo", nombre, telefono, cedula, ruc,
+          cats: cats.length ? cats : ["plomeria"],
+          rating: 5.0, trabajos: 0, nivel: "oro", esFundador: true,
+          disponible: true, saldo: 0, transito: 0,
+          ver: { cedula:!!cedula, ruc:!!ruc, seguro:false, referencias:false, prueba:false }
+        };
+      }
+      guardarDemo(d);
+      return d.usuario;
+    }
+
+    const { data, error } = await c.auth.signUp({ email: telAcorreo(telefono), password: clave });
+    if (error) throw new Error(traducir(error.message));
+    const uid = data.user?.id;
+    if (uid) {
+      await c.from("perfiles").insert({ id:uid, nombre, telefono:String(telefono), rol });
+      if (rol === "contratista") {
+        await c.from("contratistas").insert({
+          id:uid, cedula:String(cedula), ruc:ruc || null,
+          nivel:"oro", es_fundador:true, verificacion:"pendiente", disponible:false
+        });
+        for (const cat of cats) {
+          await c.from("contratista_categorias").insert({ contratista_id:uid, categoria_id:cat });
+        }
+      }
+    }
+    return { id:uid, nombre, telefono, rol };
+  },
+
+  async entrar({ telefono, clave }) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      d.usuario = d.usuario || { id:"u_demo", nombre:"Invitado", telefono, rol:"cliente" };
+      guardarDemo(d);
+      return d.usuario;
+    }
+    const { error } = await c.auth.signInWithPassword({ email: telAcorreo(telefono), password: clave });
+    if (error) throw new Error(traducir(error.message));
+    return await this.sesion();
+  },
+
+  async salir() {
+    const c = await cliente();
+    if (!c) { const d = leerDemo(); d.usuario = null; guardarDemo(d); return; }
+    await c.auth.signOut();
+  },
+
+  // ============================== cliente ==============================
+  async crearTrabajo(t) {
+    const serv = servicioPorId(t.servicioId);
+    const base = Number(t.montoBase ?? serv?.precio ?? 0);
+    const eco = economia(base, { exento: !!serv?.exento, nivel:"oro" });
+    const c = await cliente();
+
+    if (!c) {
+      const d = leerDemo();
+      const asignado = contratistaPara(t.categoria);
+      const nuevo = {
+        id: idNuevo(),
+        folio: "MC2-" + String(d.trabajos.length + 1).padStart(6, "0"),
+        servicioId: t.servicioId,
+        servicioNombre: serv ? serv.nombre : "Trabajo",
+        categoria: t.categoria, tipoPropiedad: t.tipoPropiedad, urgencia: t.urgencia,
+        direccion: t.direccion, detalle: t.detalle || "", descripcion: t.descripcion || "",
+        lat: t.lat ?? null, lng: t.lng ?? null,
+        foto: t.foto || null, fotoDespues: null,
+        estado: "asignado", contratista: asignado, contratistaId: asignado.id,
+        eco, pagos: [], creado: new Date().toISOString(), calificacion: null
+      };
+      d.trabajos.unshift(nuevo);
+      guardarDemo(d);
+      return nuevo;
+    }
+
+    const { data, error } = await c.from("trabajos").insert({
+      cliente_id: (await c.auth.getUser()).data.user?.id,
+      servicio_id: t.servicioId, categoria_id: t.categoria, modalidad: "precio_fijo",
+      estado: "buscando", tipo_propiedad: t.tipoPropiedad, urgencia: t.urgencia,
+      direccion: t.direccion, detalle_ubicacion: t.detalle || null,
+      descripcion: t.descripcion || null,
+      lat: t.lat ?? null, lng: t.lng ?? null,
+      monto_base: base,
+      tarifa_cliente: eco.tarifa, total_cliente: eco.totalCliente
+    }).select().single();
+    if (error) throw new Error(traducir(error.message));
+    return normalizar(data);
+  },
+
+  async misTrabajos() {
+    const c = await cliente();
+    if (!c) return leerDemo().trabajos;
+    const { data, error } = await c.from("trabajos")
+      .select("*").order("creado", { ascending:false }).limit(50);
+    if (error) return [];
+    return (data || []).map(normalizar);
+  },
+
+  async trabajo(id) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      return d.trabajos.find(t => t.id === id) || d.pendientes.find(t => t.id === id) || null;
+    }
+    const { data } = await c.from("trabajos").select("*").eq("id", id).single();
+    return data ? normalizar(data) : null;
+  },
+
+  async avanzar(id, estado) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      if (t) { t.estado = estado; guardarDemo(d); }
+      return t;
+    }
+    const { data } = await c.from("trabajos").update({ estado }).eq("id", id).select().single();
+    return data ? normalizar(data) : null;
+  },
+
+  // Registra un pago del cliente. tipo = "anticipo" | "saldo"
+  // El trabajo solo pasa a "pagado" cuando la suma de pagos cubre el total.
+  async pagar(id, tipo) {
+    const c = await cliente();
+    const t0 = await this.trabajo(id);
+    if (!t0) return null;
+    const monto = tipo === "anticipo" ? t0.eco.anticipo : t0.eco.saldo;
+    if (monto <= 0) return t0;
+
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      if (!t) return null;
+      t.pagos = t.pagos || [];
+      if (t.pagos.some(p => p.tipo === tipo)) return t; // no cobrar dos veces
+      t.pagos.push({ tipo, monto, metodo:"yappy", fecha:new Date().toISOString() });
+      if (r2(t.pagos.reduce((s,p) => s + p.monto, 0)) >= t.eco.totalCliente) {
+        t.estado = "pagado";
+      }
+      guardarDemo(d);
+      return t;
+    }
+
+    const { data: u } = await c.auth.getUser();
+    await c.from("pagos").insert({
+      trabajo_id:id, tipo, metodo:"yappy", monto, estado:"retenido"
+    });
+    const { data: pgs } = await c.from("pagos").select("monto").eq("trabajo_id", id);
+    const suma = (pgs || []).reduce((s,p) => s + Number(p.monto), 0);
+    if (suma >= t0.eco.totalCliente) {
+      await c.from("trabajos").update({ estado:"pagado" }).eq("id", id);
+    }
+    return await this.trabajo(id);
+  },
+
+  // cuanto ha pagado ya el cliente
+  async pagado(id) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      return (t?.pagos || []).reduce((s,p) => s + p.monto, 0);
+    }
+    const { data } = await c.from("pagos").select("monto").eq("trabajo_id", id);
+    return (data || []).reduce((s,p) => s + Number(p.monto), 0);
+  },
+
+  async calificar(id, estrellas, etiquetas = []) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      if (t) { t.calificacion = { estrellas, etiquetas }; t.estado = "calificado"; guardarDemo(d); }
+      return t;
+    }
+    const u = (await c.auth.getUser()).data.user?.id;
+    const t = await this.trabajo(id);
+    await c.from("calificaciones").insert({
+      trabajo_id:id, cliente_id:u, contratista_id:t?.contratistaId, estrellas, etiquetas
+    });
+    return await this.trabajo(id);
+  },
+
+  // ============================ contratista ============================
+  async perfilContratista() {
+    const c = await cliente();
+    if (!c) return leerDemo().contratista;
+    const { data: u } = await c.auth.getUser();
+    if (!u?.user) return null;
+    const { data } = await c.from("contratistas").select("*").eq("id", u.user.id).single();
+    if (!data) return null;
+    const { data: cats } = await c.from("contratista_categorias")
+      .select("categoria_id").eq("contratista_id", u.user.id);
+    const { data: p } = await c.from("perfiles").select("nombre,telefono").eq("id", u.user.id).single();
+    return {
+      id:data.id, nombre:p?.nombre || "", telefono:p?.telefono || "",
+      cedula:data.cedula, ruc:data.ruc || "",
+      cats:(cats || []).map(x => x.categoria_id),
+      rating:Number(data.rating) || 0, trabajos:data.trabajos_completados || 0,
+      nivel:data.nivel, esFundador:!!data.es_fundador, disponible:!!data.disponible,
+      saldo:Number(data.saldo_disponible) || 0, transito:Number(data.saldo_transito) || 0,
+      ver:{ cedula:data.ver_cedula, ruc:data.ver_ruc, seguro:data.ver_seguro,
+            referencias:data.ver_referencias, prueba:data.ver_prueba_tecnica }
+    };
+  },
+
+  async setDisponible(v) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      if (d.contratista) { d.contratista.disponible = !!v; guardarDemo(d); }
+      return !!v;
+    }
+    const { data: u } = await c.auth.getUser();
+    await c.from("contratistas").update({ disponible: !!v }).eq("id", u.user.id);
+    return !!v;
+  },
+
+  // trabajos abiertos que le sirven a este contratista
+  async trabajosCerca() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const cats = d.contratista?.cats || [];
+      const propios = d.trabajos.filter(t => t.estado === "buscando");
+      return [...d.pendientes, ...propios]
+        .filter(t => cats.length === 0 || cats.includes(t.categoria))
+        .map(t => ({ ...t, servicioNombre: servicioPorId(t.servicioId)?.nombre || "Trabajo",
+                     eco: economia(servicioPorId(t.servicioId)?.precio || 0,
+                          { exento:!!servicioPorId(t.servicioId)?.exento,
+                            nivel: d.contratista?.nivel || "bronce" }) }))
+        .sort((a,b) => (b.urgencia === "emergencia") - (a.urgencia === "emergencia")
+                     || (a.distancia || 0) - (b.distancia || 0));
+    }
+    const { data: u } = await c.auth.getUser();
+    const { data: cats } = await c.from("contratista_categorias")
+      .select("categoria_id").eq("contratista_id", u.user.id);
+    const ids = (cats || []).map(x => x.categoria_id);
+    let q = c.from("trabajos").select("*").eq("estado","buscando").limit(30);
+    if (ids.length) q = q.in("categoria_id", ids);
+    const { data } = await q;
+    return (data || []).map(normalizar);
+  },
+
+  async aceptarTrabajo(id) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const i = d.pendientes.findIndex(t => t.id === id);
+      let t;
+      if (i >= 0) { t = d.pendientes.splice(i, 1)[0]; d.trabajos.unshift(t); }
+      else t = d.trabajos.find(x => x.id === id);
+      if (!t) return null;
+      const serv = servicioPorId(t.servicioId);
+      const cn = d.contratista;
+      t.estado = "asignado";
+      t.contratistaId = cn?.id || "u_demo";
+      t.contratista = { id:cn?.id, nombre:cn?.nombre || "Tu", rating:cn?.rating || 5,
+                        trabajos:cn?.trabajos || 0, nivel:cn?.nivel || "oro" };
+      t.servicioNombre = serv?.nombre || "Trabajo";
+      t.eco = economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:cn?.nivel || "oro" });
+      guardarDemo(d);
+      return t;
+    }
+    const { data: u } = await c.auth.getUser();
+    // DOS COSAS QUE ESTABAN MAL AQUI Y COSTARON UNA TARDE.
+    //
+    // 1. No se miraba "error". Si la base rechazaba el cambio —y lo
+    //    estaba rechazando siempre, por dos fallas en las reglas— aqui
+    //    no se enteraba nadie: data llegaba vacio y la app concluia
+    //    que otro tecnico se habia adelantado. Una mentira que mandaba
+    //    a buscar el problema al lugar equivocado.
+    //
+    // 2. .single() REVIENTA cuando no vuelve ninguna fila. O sea que
+    //    perder la carrera contra otro tecnico, que es lo normal y
+    //    esperable, llegaba como si fuera una falla. .maybeSingle()
+    //    devuelve null y ya.
+    const { data, error } = await c.from("trabajos")
+      .update({ contratista_id:u.user.id, estado:"asignado" })
+      .eq("id", id).eq("estado","buscando").select().maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? normalizar(data) : null;
+  },
+
+  async misTrabajosContratista() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const mio = d.contratista?.id || "u_demo";
+      return d.trabajos.filter(t => t.contratistaId === mio);
+    }
+    const { data: u } = await c.auth.getUser();
+    const { data } = await c.from("trabajos").select("*")
+      .eq("contratista_id", u.user.id).order("creado", { ascending:false }).limit(50);
+    return (data || []).map(normalizar);
+  },
+
+  async guardarFotoDespues(id, dataUrl) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      if (t) { t.fotoDespues = dataUrl; guardarDemo(d); }
+      return t;
+    }
+    // en Supabase la foto va a Storage; por ahora guardamos la referencia
+    const { data: u } = await c.auth.getUser();
+    const ruta = `${u.user.id}/${id}-despues.jpg`;
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      await c.storage.from("trabajos").upload(ruta, blob, { upsert:true });
+      await c.from("trabajo_fotos").insert({
+        trabajo_id:id, url:ruta, momento:"despues", subida_por:u.user.id
+      });
+    } catch (e) { console.warn("MC2: no se pudo subir la foto", e); }
+    return await this.trabajo(id);
+  },
+
+  // el contratista cierra el trabajo: pasa a "listo" y el neto entra en transito
+  async finalizarTrabajo(id) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = d.trabajos.find(x => x.id === id);
+      if (!t) return null;
+      if (!t.fotoDespues) throw new Error("Sube la foto del despues antes de finalizar.");
+      t.estado = "listo";
+      if (d.contratista) {
+        d.contratista.transito = r2((d.contratista.transito || 0) + (t.eco?.netoContratista || 0));
+        d.contratista.trabajos = (d.contratista.trabajos || 0) + 1;
+        d.contratista.nivel = nivelPara(d.contratista.trabajos, d.contratista.rating, d.contratista.esFundador);
+      }
+      guardarDemo(d);
+      return t;
+    }
+    const { data } = await c.from("trabajos").update({ estado:"listo" }).eq("id", id).select().single();
+    return data ? normalizar(data) : null;
+  },
+
+  async billetera() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const cn = d.contratista || {};
+      const mios = d.trabajos.filter(t => t.contratistaId === (cn.id || "u_demo"));
+      const pagados = mios.filter(t => ["pagado","calificado"].includes(t.estado));
+      const disponible = r2(pagados.reduce((s,t) => s + (t.eco?.netoContratista || 0), 0)
+                            - (d.retiros || []).reduce((s,r) => s + r.monto, 0));
+      const transito = r2(mios.filter(t => t.estado === "listo")
+                            .reduce((s,t) => s + (t.eco?.netoContratista || 0), 0));
+      const semana = r2(pagados.reduce((s,t) => s + (t.eco?.netoContratista || 0), 0));
+      return { disponible: Math.max(0, disponible), transito, semana, trabajosSemana: pagados.length };
+    }
+    const p = await this.perfilContratista();
+    return { disponible:p?.saldo || 0, transito:p?.transito || 0, semana:0, trabajosSemana:0 };
+  },
+
+  async retirar(monto) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const b = await this.billetera();
+      if (monto > b.disponible) throw new Error("No tienes ese saldo disponible.");
+      d.retiros.push({ monto:r2(monto), fecha:new Date().toISOString() });
+      guardarDemo(d);
+      return true;
+    }
+    const { data: u } = await c.auth.getUser();
+    const p = await this.perfilContratista();
+    await c.from("retiros").insert({
+      contratista_id:u.user.id, monto, yappy_telefono:p?.telefono || ""
+    });
+    return true;
+  },
+
+  // ============================ panel de Leo ============================
+  // Solo funciona si el perfil tiene rol "staff_mc2". Si no, la base de
+  // datos devuelve vacio: la proteccion no depende de esconder la pantalla.
+  async colaVerificacion() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const cn = d.contratista;
+      return cn ? [{
+        id: cn.id, nombre: cn.nombre, telefono: cn.telefono,
+        cedula: cn.cedula, ruc: cn.ruc,
+        idoneidad_numero: cn.idoneidadNumero || null,
+        idoneidad_estado: cn.idoneidadEstado || "pendiente",
+        antecedentes_estado: "pendiente",
+        verificacion: cn.verificacion || "pendiente",
+        suspendido: false, docs_aprobados: 0, docs_subidos: 0,
+        refs_positivas: 0, refs_totales: 0, activo: false,
+        creado: new Date().toISOString()
+      }] : [];
+    }
+    const { data, error } = await c.from("v_cola_verificacion").select("*");
+    if (error) { console.warn("MC2: no se pudo leer la cola.", error); return []; }
+    return data || [];
+  },
+
+  async detalleContratista(id) {
+    const c = await cliente();
+    if (!c) return (await this.colaVerificacion()).find(x => x.id === id) || null;
+    const [{ data: c1 }, { data: cats }, { data: refs }] = await Promise.all([
+      c.from("contratistas").select("*").eq("id", id).single(),
+      c.from("contratista_categorias").select("categoria_id").eq("contratista_id", id),
+      c.from("referencias_contratista").select("*").eq("contratista_id", id)
+    ]);
+    if (!c1) return null;
+    const { data: p } = await c.from("perfiles").select("nombre,telefono").eq("id", id).single();
+    return {
+      ...c1,
+      nombre: p?.nombre || "", telefono: p?.telefono || "",
+      cats: (cats || []).map(x => x.categoria_id),
+      referencias: refs || []
+    };
+  },
+
+  // Marca una casilla del checklist (cedula, ruc, seguro, referencias...)
+  async marcarVerificacion(id, campo, valor) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({ [campo]: valor }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  async guardarIdoneidad(id, { numero, categoria, vence, estado }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({
+      idoneidad_numero: numero || null,
+      idoneidad_categoria: categoria || null,
+      idoneidad_vence: vence || null,
+      idoneidad_estado: estado
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  // La licencia de gas del Cuerpo de Bomberos. Es un papel aparte de la
+  // idoneidad y lo da otra institucion, asi que se guarda aparte.
+  async guardarLicenciaGas(id, { numero, vence, estado }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("contratistas").update({
+      licencia_gas_numero: numero || null,
+      licencia_gas_vence: vence || null,
+      licencia_gas_estado: estado
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  async registrarReferencia(id, { nombre, telefono, resultado, notas }) {
+    const c = await cliente();
+    if (!c) return true;
+    const { error } = await c.from("referencias_contratista").insert({
+      contratista_id: id, nombre, telefono,
+      llamada: true, llamada_en: new Date().toISOString(),
+      resultado, notas: notas || null
+    });
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  // Activar, rechazar y suspender pasan por funciones de la base de datos
+  // que verifican el rol otra vez. Aunque alguien llamara esto por fuera
+  // de la app, sin ser staff no pasa nada.
+  async activarContratista(id, nota) {
+    const c = await cliente();
+    if (!c) return true;
+    const r = await pedirFuncion(c, "activar_contratista", { p_id: id, p_nota: nota || null });
+    return r;
+  },
+  async rechazarContratista(id, motivo) {
+    const c = await cliente();
+    if (!c) return true;
+    return await pedirFuncion(c, "rechazar_contratista", { p_id: id, p_motivo: motivo });
+  },
+  async suspenderContratista(id, motivo) {
+    const c = await cliente();
+    if (!c) return true;
+    return await pedirFuncion(c, "suspender_contratista", { p_id: id, p_motivo: motivo });
+  },
+
+  async borrarDemo() {
+    try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
+  },
+
+  // ---- AVISOS AL CELULAR (7 de agosto de 2026) ----
+  async registrarCelular({ endpoint, p256dh, auth, dispositivo }) {
+    const c = await cliente();
+    if (!c) return null;
+    const { data: u } = await c.auth.getUser();
+    if (!u || !u.user) return null;
+    // Si este mismo celular ya estaba, se reemplaza. Sin esto el
+    // contratista recibiria cada aviso dos y tres veces.
+    await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
+    const { data } = await c.from("suscripciones_push").insert({
+      perfil_id: u.user.id, endpoint, p256dh, auth, dispositivo,
+    }).select().single();
+    return data || null;
+  },
+
+  async borrarCelular(endpoint) {
+    const c = await cliente();
+    if (!c) return null;
+    await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
+    return true;
+  },
+
+  // ---- CANCELAR Y SOLTAR (7 de agosto de 2026) ----
+  // Quien puede hacer que lo decide la base de datos, no la app.
+  async cancelarTrabajo(id, motivo) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = (d.pendientes || []).concat(d.trabajos || []).find(x => x.id === id);
+      if (t) { t.estado = "cancelado"; guardarDemo(d); }
+      return { ok: true };
+    }
+    return await pedirFuncion(c, "cancelar_trabajo", { p_id: id, p_motivo: motivo || null });
+  },
+
+  async soltarTrabajo(id, motivo) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const t = (d.trabajos || []).find(x => x.id === id);
+      if (t) { t.estado = "buscando"; t.contratistaId = null; guardarDemo(d); }
+      return { ok: true };
+    }
+    return await pedirFuncion(c, "soltar_trabajo", { p_id: id, p_motivo: motivo || null });
+  }
+};
+
+// Dibuja la caja de avisos arriba de la lista de trabajos.
+// Si ya estan activos no muestra nada: no hay que estorbar con algo
+// que el usuario ya resolvio.
+function pintarCajaAvisos(el) {
+  const caja = el.querySelector("#caja-avisos");
+  if (!caja) return;
+  const e = estadoAvisos();
+
+  if (e.estado === "activo") { caja.innerHTML = ""; return; }
+
+  if (!e.puede) {
+    caja.innerHTML = `
+      <div class="aviso aviso-naranja">
+        <b>&#128276; No te van a sonar los trabajos</b>
+        ${esc(mensajeAvisos(e))}
+      </div>`;
+    return;
+  }
+
+  caja.innerHTML = `
+    <div class="aviso aviso-azul">
+      <b>&#128276; Que te suene el celular</b>
+      Ahorita tienes que estar mirando la pantalla para enterarte de que
+      entro un trabajo. Activa los avisos y te suena aunque tengas la app
+      cerrada.
+      <div style="height:9px"></div>
+      <button class="btn btn-primario btn-chico" id="b-avisos">Activar avisos</button>
+    </div>`;
+
+  const b = caja.querySelector("#b-avisos");
+  if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Activando...";
+    const r = await activarAvisos();
+    if (r.ok) {
+      caja.innerHTML = `
+        <div class="aviso aviso-verde">
+          <b>&#9989; Listo, ya te van a sonar</b>
+          Te avisamos apenas entre un trabajo en tu zona, aunque tengas la
+          app cerrada.
+        </div>`;
+      return;
+    }
+    b.disabled = false; b.textContent = "Activar avisos";
+    const motivo = r.motivo === "rechazado"
+      ? "No diste permiso. Sin eso no te podemos avisar cuando entre un trabajo."
+      : mensajeAvisos({ motivo: r.motivo }) || "No se pudo activar. Intenta de nuevo.";
+    const p = document.createElement("div");
+    p.style.cssText = "margin-top:9px;font-size:12.5px";
+    p.textContent = motivo;
+    caja.querySelector(".aviso").appendChild(p);
+  };
+}
+
+// =====================================================================
+//  AVISOS AL CELULAR
+//  Pide permiso y registra el celular para que le lleguen trabajos
+//  aunque tenga la app cerrada.
+//
+//  OJO CON EL IPHONE: Apple solo entrega avisos si la app esta agregada
+//  a la pantalla de inicio. Desde Safari suelto no llega nada. Por eso
+//  se detecta y se le explica, en vez de dejarlo creyendo que activo
+//  algo que no funciona.
+// =====================================================================
+
+const VAPID_PUBLICA =
+  "BDOJmnEyQVOEmzb6hQxdgRSzx-W3m-pk-80exK77T7gC6stB0V_QpvanNm9B1S_evkPHrsBFWqNjMTFmJzvFAiQ";
+
+function esIPhone() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function appInstalada() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true;
+}
+
+function estadoAvisos() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) ||
+      !("Notification" in window)) {
+    return { puede: false, motivo: "navegador_viejo" };
+  }
+  if (esIPhone() && !appInstalada()) {
+    return { puede: false, motivo: "iphone_sin_instalar" };
+  }
+  if (Notification.permission === "granted") return { puede: true, estado: "activo" };
+  if (Notification.permission === "denied")  return { puede: false, motivo: "bloqueado" };
+  return { puede: true, estado: "sin_pedir" };
+}
+
+function mensajeAvisos(e) {
+  if (e.motivo === "iphone_sin_instalar")
+    return "Para que te lleguen los trabajos, primero agrega MC2 a tu pantalla de inicio: " +
+           "toca el boton de compartir de Safari y luego \u201cAgregar a pantalla de inicio\u201d. " +
+           "Despues abrela desde ahi y activa los avisos.";
+  if (e.motivo === "bloqueado")
+    return "Bloqueaste los avisos en este telefono. Para volver a activarlos entra a los " +
+           "ajustes del navegador para este sitio y permite las notificaciones.";
+  if (e.motivo === "navegador_viejo")
+    return "Este navegador no soporta avisos. Prueba con Chrome o con Safari actualizado.";
+  return "";
+}
+
+function llaveABytes(b64url) {
+  const relleno = "=".repeat((4 - (b64url.length % 4)) % 4);
+  const b64 = (b64url + relleno).replace(/-/g, "+").replace(/_/g, "/");
+  const crudo = atob(b64);
+  const bytes = new Uint8Array(crudo.length);
+  for (let i = 0; i < crudo.length; i++) bytes[i] = crudo.charCodeAt(i);
+  return bytes;
+}
+
+async function activarAvisos() {
+  const e = estadoAvisos();
+  if (!e.puede) return { ok: false, motivo: e.motivo };
+
+  let permiso = Notification.permission;
+  if (permiso !== "granted") {
+    try { permiso = await Notification.requestPermission(); }
+    catch (err) { return { ok: false, motivo: "error" }; }
+  }
+  if (permiso !== "granted") return { ok: false, motivo: "rechazado" };
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sus = await reg.pushManager.getSubscription();
+    if (!sus) {
+      sus = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: llaveABytes(VAPID_PUBLICA),
+      });
+    }
+    const j = sus.toJSON();
+    if (!j.keys || !j.keys.p256dh || !j.keys.auth) return { ok:false, motivo:"sin_llaves" };
+
+    await API.registrarCelular({
+      endpoint: sus.endpoint,
+      p256dh: j.keys.p256dh,
+      auth: j.keys.auth,
+      dispositivo: (navigator.userAgent || "").slice(0, 120),
+    });
+    return { ok: true };
+  } catch (err) {
+    console.warn("MC2: no se pudo activar los avisos", err);
+    return { ok: false, motivo: "error" };
+  }
+}
+
+// Llama una funcion guardada dentro de la base de datos.
+async function pedirFuncion(c, nombre, args) {
+  const r = await c.rpc(nombre, args);
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+}
+
+function normalizar(f) {
+  const serv = servicioPorId(f.servicio_id);
+  return {
+    id:f.id, folio:f.folio, servicioId:f.servicio_id,
+    servicioNombre: serv ? serv.nombre : "Trabajo",
+    categoria:f.categoria_id, tipoPropiedad:f.tipo_propiedad, urgencia:f.urgencia,
+    direccion:f.direccion, detalle:f.detalle_ubicacion || "", descripcion:f.descripcion || "",
+    estado:f.estado, contratistaId:f.contratista_id, contratista:null,
+    lat:f.lat ?? null, lng:f.lng ?? null,
+    distancia:null, foto:null, fotoDespues:null,
+    eco: economia(f.monto_base, { exento:!!serv?.exento, nivel:"oro" }),
+    creado:f.creado, calificacion:null
+  };
+}
+
+function traducir(msg = "") {
+  const m = String(msg).toLowerCase();
+  if (m.includes("invalid login")) return "El telefono o la clave no coinciden.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "Ese telefono ya esta registrado. Intenta entrar.";
+  if (m.includes("password") && m.includes("6"))
+    return "La clave debe tener al menos 6 caracteres.";
+  if (m.includes("network") || m.includes("fetch"))
+    return "No hay conexion. Revisa tu internet.";
+  if (m.includes("email") && m.includes("invalid"))
+    return "El sistema rechazo el correo interno. Avisale a Leo: hay que cambiar el dominio.";
+  // Si no reconocemos el error, mostramos el original en vez de esconderlo.
+  // Un mensaje feo pero util es mejor que uno bonito e inservible.
+  return "Algo fallo: " + String(msg);
+}
+
+return { REGLAS, NIVELES, calcularTarifaCliente, calcularComision, porcentajeAnticipo, economia, nivelPara, faltaParaSubir, money, CATEGORIAS, SERVICIOS, serviciosDe, servicioPorId, catalogoCargado, cargarCatalogo, ESTADOS, ESTADO_TXT, URGENCIA_TXT, modoDemo, API };
+})();
+
+
+/* ===== vistas.js ===== */
+__M["vistas"] = (function(){
+// =====================================================================
+//  MC2 — PANTALLAS
+//  Cada funcion devuelve { html, montar } y el router la dibuja.
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG } = __M["config"];
+const { API, CATEGORIAS, serviciosDe, servicioPorId, economia, money, ESTADOS, ESTADO_TXT, modoDemo } = __M["datos"];
+
+// escapa texto para que nadie pueda inyectar HTML
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+
+const cab = (titulo, { volver = null, sub = null } = {}) => `
+  <div class="cab">
+    <div class="cab-fila">
+      ${volver ? `<button class="volver" data-ir="${volver}" aria-label="Volver">&#8592;</button>` : ""}
+      <div style="flex:1">
+        <h1>${esc(titulo)}</h1>
+        ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+
+const barra = (activo) => `
+  <nav class="barra">
+    <button data-ir="inicio" class="${activo === "inicio" ? "activo" : ""}">
+      <span class="ico">&#127968;</span><span class="txt">Inicio</span></button>
+    <button data-ir="trabajos" class="${activo === "trabajos" ? "activo" : ""}">
+      <span class="ico">&#128203;</span><span class="txt">Mis trabajos</span></button>
+    <button data-ir="perfil" class="${activo === "perfil" ? "activo" : ""}">
+      <span class="ico">&#128100;</span><span class="txt">Perfil</span></button>
+  </nav>`;
+
+// ------------------------------------------------------------ 1. ENTRADA
+function vistaEntrada() {
+  const html = `
+    <div class="cab" style="padding:26px 18px 22px">
+      <div style="font-size:36px;font-weight:800;letter-spacing:-.02em">MC2</div>
+      <div class="sub" style="font-size:13px;margin-top:2px">${esc(CONFIG.NOMBRE_LARGO)}</div>
+      <div style="font-size:20px;font-weight:600;margin-top:18px;line-height:1.3">
+        Reparaciones sin dolores de cabeza
+      </div>
+    </div>
+    <div class="cont vista">
+      <div class="aviso aviso-azul" style="margin-bottom:16px">
+        <div style="display:flex;gap:9px;margin-bottom:6px"><span>&#9989;</span>
+          <span>Contratistas verificados con RUC, cedula y referencias</span></div>
+        <div style="display:flex;gap:9px;margin-bottom:6px"><span>&#128179;</span>
+          <span>Precio cerrado. Pagas seguro por la app</span></div>
+        <div style="display:flex;gap:9px"><span>&#128737;</span>
+          <span>Garantia MC2 de 7 dias</span></div>
+      </div>
+
+      <div id="err"></div>
+
+      <div id="campos-registro">
+        <label for="f-nombre">Tu nombre</label>
+        <input id="f-nombre" type="text" placeholder="Leo Ortega" autocomplete="name">
+      </div>
+
+      <label for="f-tel">Tu celular</label>
+      <input id="f-tel" type="tel" inputmode="numeric" placeholder="6123-4567" autocomplete="tel">
+
+      <label for="f-clave">Crea una clave</label>
+      <input id="f-clave" type="password" placeholder="Minimo 6 caracteres" autocomplete="current-password">
+
+      <div style="height:18px"></div>
+      <button class="btn btn-primario" id="b-entrar">Crear mi cuenta</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-suave btn-chico" id="b-cambiar">Ya tengo cuenta, quiero entrar</button>
+
+      <div style="display:flex;align-items:center;gap:10px;margin:20px 0 14px">
+        <span style="flex:1;height:1px;background:var(--gris-3)"></span>
+        <span style="font-size:11.5px;color:var(--gris-2)">o</span>
+        <span style="flex:1;height:1px;background:var(--gris-3)"></span>
+      </div>
+
+      <button class="btn btn-linea" data-ir="c-registro">
+        &#128296; Soy contratista, quiero trabajar
+      </button>
+
+      <p class="ayuda" style="text-align:center;margin-top:16px">
+        Al continuar aceptas los terminos de servicio de MC2.
+      </p>
+
+      <div style="height:10px"></div>
+      <button class="btn btn-suave btn-chico" id="b-diag"
+        style="font-size:12px;color:var(--gris-2)">Probar conexion (version ${esc(CONFIG.VERSION)})</button>
+      <pre id="diag" style="display:none;white-space:pre-wrap;font-size:11px;
+        background:var(--gris-luz);padding:10px;border-radius:8px;margin-top:8px;
+        line-height:1.5;overflow-x:auto"></pre>
+    </div>`;
+
+  function montar(el, { ir }) {
+    let esRegistro = true;
+    const $ = (id) => el.querySelector(id);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+
+    $("#b-cambiar").onclick = () => {
+      esRegistro = !esRegistro;
+      $("#campos-registro").style.display = esRegistro ? "" : "none";
+      $("#b-entrar").textContent = esRegistro ? "Crear mi cuenta" : "Entrar";
+      $("#b-cambiar").textContent = esRegistro
+        ? "Ya tengo cuenta, quiero entrar" : "Soy nuevo, quiero registrarme";
+      $("#f-clave").previousElementSibling.textContent = esRegistro ? "Crea una clave" : "Tu clave";
+      err("");
+    };
+
+    // Diagnostico: prueba cada paso por separado y muestra el resultado
+    // en pantalla. Sirve para saber exactamente donde se rompe.
+    $("#b-diag").onclick = async () => {
+      const caja = $("#diag");
+      caja.style.display = "block";
+      caja.textContent = "Probando...\n";
+      const linea = (t) => { caja.textContent += t + "\n"; };
+      const U = CONFIG.SUPABASE_URL, K = CONFIG.SUPABASE_ANON_KEY;
+
+      linea("version: " + CONFIG.VERSION);
+      linea("servidor: " + (U || "SIN CONFIGURAR"));
+      linea("llave: " + (K ? K.slice(0, 12) + "..." : "SIN CONFIGURAR"));
+      linea("");
+
+      const probar = async (nombre, hacer) => {
+        try {
+          const r = await hacer();
+          const cuerpo = (await r.text()).slice(0, 160);
+          linea(`${nombre}: HTTP ${r.status}`);
+          linea(`   ${cuerpo}`);
+        } catch (e) {
+          linea(`${nombre}: FALLO`);
+          linea(`   ${e.name}: ${e.message}`);
+        }
+        linea("");
+      };
+
+      await probar("1. Leer sin cabeceras", () =>
+        fetch(`${U}/rest/v1/categorias?select=nombre&apikey=${K}`));
+
+      await probar("2. Leer con cabeceras", () =>
+        fetch(`${U}/rest/v1/categorias?select=nombre`, { headers: { apikey: K } }));
+
+      await probar("3. Consultar el registro", () =>
+        fetch(`${U}/auth/v1/settings`, { headers: { apikey: K } }));
+
+      const falso = "9" + Math.floor(1000000 + Math.random() * 8999999) + "@mc2.app";
+      await probar("4. Crear usuario de prueba", () =>
+        fetch(`${U}/auth/v1/signup`, {
+          method: "POST",
+          headers: { apikey: K, "Content-Type": "application/json" },
+          body: JSON.stringify({ email: falso, password: "MC2diagnostico2026" })
+        }));
+
+      linea("--- fin. mandale esta pantalla a Claude ---");
+    };
+
+    $("#b-entrar").onclick = async () => {
+      const nombre = $("#f-nombre").value.trim();
+      const telefono = $("#f-tel").value.trim();
+      const clave = $("#f-clave").value;
+      if (esRegistro && nombre.length < 2) return err("Escribe tu nombre.");
+      if (telefono.replace(/\D/g, "").length < 7) return err("Escribe un celular valido.");
+      if (clave.length < 6) return err("La clave debe tener al menos 6 caracteres.");
+
+      const b = $("#b-entrar");
+      b.disabled = true; b.textContent = "Un momento...";
+      try {
+        const u = esRegistro
+          ? await API.registrar({ nombre, telefono, clave, rol:"cliente" })
+          : await API.entrar({ telefono, clave });
+        ir(u && u.rol === "contratista" ? "c-trabajos" : "inicio", {}, u);
+      } catch (e) {
+        err(e.message || "Algo fallo.");
+        b.disabled = false;
+        b.textContent = esRegistro ? "Crear mi cuenta" : "Entrar";
+      }
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 2. INICIO
+function vistaInicio(ctx) {
+  const nombre = (ctx.usuario?.nombre || "").split(" ")[0] || "";
+  const zona = ctx.zona || CONFIG.ZONAS[0];
+  const activo = (ctx.trabajos || []).find(t =>
+    ["buscando","asignado","en_camino","trabajando","listo"].includes(t.estado));
+
+  const html = `
+    <div class="cab">
+      <div class="saludo">Hola${nombre ? ", " + esc(nombre) : ""}</div>
+      <div class="pregunta">&iquest;Que necesitas reparar hoy?</div>
+      <button class="chip-zona" id="b-zona">&#128205; ${esc(zona)} &#9662;</button>
+    </div>
+    <div class="cont vista">
+      <div class="rejilla">
+        ${CATEGORIAS.map(c => `
+          <button class="serv" data-cat="${c.id}">
+            <span class="ico">${c.ico}</span>
+            <span class="txt">${esc(c.nombre)}</span>
+          </button>`).join("")}
+      </div>
+
+      <div style="height:14px"></div>
+      <div class="aviso aviso-naranja" id="b-emergencia" style="cursor:pointer">
+        <b>&#9888;&#65039; &iquest;Es una emergencia?</b>
+        Tecnico en tu puerta en menos de 2 horas.
+      </div>
+
+      ${activo ? `
+        <p class="seccion-tit" style="margin-top:18px">Tu trabajo en curso</p>
+        <div class="tarjeta" data-abrir="${activo.id}" style="cursor:pointer">
+          <div class="item">
+            <div>
+              <p class="nom">${esc(activo.servicioNombre)}</p>
+              <p class="det">${esc(ESTADO_TXT[activo.estado] || activo.estado)}
+                ${activo.contratista ? " &middot; " + esc(activo.contratista.nombre) : ""}</p>
+            </div>
+            <span style="font-size:20px;color:var(--gris-2)">&rsaquo;</span>
+          </div>
+        </div>` : ""}
+
+      <div style="height:16px"></div>
+      <div class="aviso aviso-verde">
+        <b>&#128737; Garantia MC2 de 7 dias</b>
+        Si el trabajo falla, mandamos otro tecnico sin costo.
+      </div>
+    </div>
+    ${barra("inicio")}`;
+
+  function montar(el, { ir, setZona }) {
+    el.querySelectorAll("[data-cat]").forEach(b => {
+      b.onclick = () => ir("catalogo", { cat: b.dataset.cat });
+    });
+    const ab = el.querySelector("[data-abrir]");
+    if (ab) ab.onclick = () => ir("trabajo", { id: ab.dataset.abrir });
+    el.querySelector("#b-emergencia").onclick = () => ir("catalogo", { cat:"plomeria", urgencia:"emergencia" });
+    el.querySelector("#b-zona").onclick = () => {
+      const i = CONFIG.ZONAS.indexOf(ctx.zona || CONFIG.ZONAS[0]);
+      setZona(CONFIG.ZONAS[(i + 1) % CONFIG.ZONAS.length]);
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 3. CATALOGO
+function vistaCatalogo(ctx) {
+  const cat = CATEGORIAS.find(c => c.id === ctx.params.cat) || CATEGORIAS[0];
+  const lista = serviciosDe(cat.id);
+  const fijos = lista.filter(s => s.precio != null);
+  const abiertos = lista.filter(s => s.precio == null);
+
+  const html = `
+    ${cab(cat.nombre, { volver:"inicio", sub:"Precio cerrado. Incluye mano de obra." })}
+    <div class="cont vista">
+      ${fijos.length ? `<p class="seccion-tit">Precio MC2</p>` : ""}
+      ${fijos.map((s, i) => `
+        <div class="tarjeta ${i === 0 ? "destacada" : ""}" data-serv="${s.id}" style="cursor:pointer">
+          <div class="item">
+            <div style="flex:1">
+              <p class="nom">${esc(s.nombre)}</p>
+              <p class="det">&#128337; ${s.min} min aprox. &middot; ${esc(s.incluye || "")}</p>
+            </div>
+            <div><div class="precio">${CONFIG.MONEDA} ${s.precio}</div></div>
+          </div>
+          ${i === 0 ? `<div style="height:9px"></div>
+            <button class="btn btn-primario btn-chico" data-serv-btn="${s.id}">Pedir ahora</button>` : ""}
+        </div>`).join("")}
+
+      ${abiertos.length ? `
+        <p class="seccion-tit" style="margin-top:18px">Necesita revision</p>
+        ${abiertos.map(s => `
+          <div class="tarjeta plana" data-serv="${s.id}" style="cursor:pointer">
+            <div class="item">
+              <div><p class="nom">${esc(s.nombre)}</p>
+                <p class="det">Mandanos una foto y te cotizamos</p></div>
+              <div class="det" style="white-space:nowrap">${CONFIG.MONEDA} ${s.rango[0]} - ${s.rango[1]}</div>
+            </div>
+          </div>`).join("")}` : ""}
+    </div>
+    ${barra("inicio")}`;
+
+  function montar(el, { ir }) {
+    const abrir = (id) => ir("pedir", { servicioId:id, urgencia: ctx.params.urgencia || "normal" });
+    el.querySelectorAll("[data-serv]").forEach(d => { d.onclick = () => abrir(d.dataset.serv); });
+    el.querySelectorAll("[data-serv-btn]").forEach(b => {
+      b.onclick = (ev) => { ev.stopPropagation(); abrir(b.dataset.servBtn); };
+    });
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 4. PEDIR
+function vistaPedir(ctx) {
+  const s = servicioPorId(ctx.params.servicioId);
+  if (!s) return { html:`<div class="cont"><div class="vacio">Servicio no encontrado.</div></div>`, montar(){} };
+
+  const esFijo = s.precio != null;
+  const eco = esFijo ? economia(s.precio, { exento:!!s.exento, nivel:"oro" }) : null;
+
+  const html = `
+    ${cab("Confirmar pedido", { volver:"inicio", sub:s.nombre })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      <p class="seccion-tit">Muestranos el dano ${esFijo ? "(opcional)" : ""}</p>
+      <div class="foto-zona" id="zona-foto">
+        <span class="ico">&#128247;</span>
+        <span class="t">Tomar foto o elegir del celular</span>
+        <span class="s">Ayuda al tecnico a llegar preparado</span>
+      </div>
+      <input type="file" id="f-foto" accept="image/*" capture="environment" style="display:none">
+      <div id="previa"></div>
+
+      <label>&iquest;Donde queda?</label>
+      <button class="btn btn-azul btn-chico" id="b-ubicar">
+        &#128205; Usar mi ubicacion</button>
+      <div id="mapa" style="display:none;margin-top:10px"></div>
+      <div id="est-ubi" class="ayuda" style="margin-top:6px"></div>
+
+      <input id="f-dir" type="text" placeholder="PH Costa Bay, Costa del Este"
+             value="${esc(ctx.zona || "")}" style="margin-top:10px">
+      <p class="ayuda">Puedes corregir la direccion a mano si hace falta.</p>
+
+      <label for="f-det">Torre, piso y apartamento o local</label>
+      <input id="f-det" type="text" placeholder="Torre B, piso 14, apto 1402">
+      <p class="ayuda">Esto es lo mas importante: el GPS llega al edificio,
+        pero solo tu sabes el apartamento.</p>
+
+      <label>Tipo de propiedad</label>
+      <div class="opciones" id="ops-tipo">
+        <button class="opcion" data-v="residencial">Residencial</button>
+        <button class="opcion activa" data-v="ph">PH</button>
+        <button class="opcion" data-v="comercial">Comercial</button>
+      </div>
+
+      <label>&iquest;Que tan urgente?</label>
+      <div class="opciones" id="ops-urg">
+        <button class="opcion ${ctx.params.urgencia === "normal" ? "activa" : ""}" data-v="normal">
+          <span class="ico">&#128197;</span>Normal</button>
+        <button class="opcion ${ctx.params.urgencia === "urgente" ? "activa" : ""}" data-v="urgente">
+          <span class="ico">&#9200;</span>Urgente</button>
+        <button class="opcion ${ctx.params.urgencia === "emergencia" ? "activa" : ""}" data-v="emergencia">
+          <span class="ico">&#9888;&#65039;</span>Emergencia</button>
+      </div>
+
+      <label for="f-desc">Cuentanos mas (opcional)</label>
+      <textarea id="f-desc" placeholder="El agua sale por debajo del gabinete desde ayer"></textarea>
+
+      ${esFijo ? `
+        <div class="dinero">
+          <div class="l"><span>${esc(s.nombre)}</span><span>${money(eco.base)}</span></div>
+          <div class="l"><span>Garantia MC2 de 7 dias</span><span>${eco.tarifa ? money(eco.tarifa) : "Incluida"}</span></div>
+          <div class="l total"><span>Total</span><span>${money(eco.totalCliente)}</span></div>
+          <div class="l" style="font-size:12px;padding-top:8px">
+            <span>${eco.anticipo <= 0
+              ? "No pagas nada ahora. Pagas cuando el trabajo este listo."
+              : eco.saldo <= 0
+                ? `Pagas ${money(eco.anticipo)} al confirmar. MC2 te lo retiene hasta que apruebes.`
+                : `Pagas hoy ${money(eco.anticipo)} &middot; al terminar ${money(eco.saldo)}`}</span></div>
+        </div>` : `
+        <div class="aviso aviso-azul" style="margin-top:14px">
+          <b>Trabajos parecidos: ${CONFIG.MONEDA} ${s.rango[0]} - ${s.rango[1]}</b>
+          Un tecnico revisa tu foto y te manda el precio exacto.
+        </div>`}
+
+      <button class="btn btn-primario" id="b-pedir">
+        ${esFijo ? "Pedir tecnico ahora" : "Pedir cotizacion"}
+      </button>
+      <p class="ayuda" style="text-align:center">
+        ${esFijo ? "Te asignamos al tecnico mejor calificado disponible." : "Recibes respuesta en menos de 30 minutos."}
+      </p>
+    </div>`;
+
+  function montar(el, { ir }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+    let foto = null;
+    let tipo = "ph";
+    let urg = ctx.params.urgencia || "normal";
+    let lat = null, lng = null;
+
+    // ---- Ubicacion por GPS ----
+    // El mapa se muestra con OpenStreetMap incrustado: es gratis, no pide
+    // llave de nadie y no nos amarra a ningun proveedor de pago.
+    const pintarMapa = (la, lo) => {
+      const d = 0.0035;
+      const caja = [lo - d, la - d, lo + d, la + d].join("%2C");
+      $("#mapa").style.display = "block";
+      $("#mapa").innerHTML =
+        `<iframe title="Mapa de la ubicacion" style="width:100%;height:180px;border:0;
+          border-radius:var(--r-g)" loading="lazy"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=${caja}&layer=mapnik&marker=${la}%2C${lo}"></iframe>`;
+    };
+
+    $("#b-ubicar").onclick = () => {
+      const b = $("#b-ubicar");
+      const est = $("#est-ubi");
+      if (!navigator.geolocation) {
+        est.textContent = "Tu celular no permite ubicacion. Escribe la direccion a mano.";
+        return;
+      }
+      b.disabled = true; b.textContent = "Buscando tu ubicacion...";
+      est.textContent = "";
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        lat = pos.coords.latitude; lng = pos.coords.longitude;
+        pintarMapa(lat, lng);
+        b.disabled = false; b.textContent = "\u{1F4CD} Actualizar mi ubicacion";
+        est.textContent = "Ubicacion tomada. Revisa el mapa.";
+
+        // Intentamos traducir las coordenadas a una direccion legible.
+        // Si el servicio no responde, no pasa nada: las coordenadas ya
+        // quedaron guardadas y son lo que de verdad le sirve al tecnico.
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=es`);
+          if (r.ok) {
+            const j = await r.json();
+            if (j.display_name && !$("#f-dir").dataset.tocado) {
+              $("#f-dir").value = j.display_name.split(",").slice(0, 3).join(",").trim();
+            }
+          }
+        } catch (e) { /* seguimos con las coordenadas */ }
+      }, (err) => {
+        b.disabled = false; b.textContent = "\u{1F4CD} Usar mi ubicacion";
+        est.textContent = err.code === 1
+          ? "No diste permiso de ubicacion. Puedes escribir la direccion a mano."
+          : "No pudimos tomar tu ubicacion. Escribe la direccion a mano.";
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    };
+
+    // Si el cliente corrige la direccion, no se la volvemos a pisar.
+    $("#f-dir").oninput = () => { $("#f-dir").dataset.tocado = "1"; };
+
+    $("#zona-foto").onclick = () => $("#f-foto").click();
+    $("#f-foto").onchange = (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (f.size > 6 * 1024 * 1024) return err("La foto pesa mucho. Toma una mas liviana.");
+      const lector = new FileReader();
+      lector.onload = () => {
+        foto = lector.result;
+        $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Foto del dano">`;
+        $("#zona-foto").style.display = "none";
+        err("");
+      };
+      lector.readAsDataURL(f);
+    };
+
+    const grupo = (sel, set) => {
+      el.querySelectorAll(`${sel} .opcion`).forEach(b => {
+        b.onclick = () => {
+          el.querySelectorAll(`${sel} .opcion`).forEach(x => x.classList.remove("activa"));
+          b.classList.add("activa");
+          set(b.dataset.v);
+        };
+      });
+    };
+    grupo("#ops-tipo", v => tipo = v);
+    grupo("#ops-urg",  v => urg = v);
+
+    $("#b-pedir").onclick = async () => {
+      const direccion = $("#f-dir").value.trim();
+      if (direccion.length < 4) return err("Escribe la direccion.");
+      const b = $("#b-pedir");
+      b.disabled = true; b.textContent = "Buscando tecnico...";
+      try {
+        const t = await API.crearTrabajo({
+          servicioId: s.id, categoria: s.cat, tipoPropiedad: tipo, urgencia: urg,
+          direccion, detalle: $("#f-det").value.trim(),
+          descripcion: $("#f-desc").value.trim(), foto, lat, lng
+        });
+        ir("trabajo", { id: t.id });
+      } catch (e) {
+        err(e.message || "No se pudo crear el pedido.");
+        b.disabled = false; b.textContent = esFijo ? "Pedir tecnico ahora" : "Pedir cotizacion";
+      }
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 5. TRABAJO
+function vistaTrabajo(ctx) {
+  const t = ctx.trabajo;
+  if (!t) return { html:`${cab("Trabajo", { volver:"trabajos" })}
+    <div class="cont"><div class="vacio">No encontramos ese trabajo.</div></div>`, montar(){} };
+
+  const idx = ESTADOS.indexOf(t.estado);
+  const eco = t.eco || economia(0);
+  const c = t.contratista;
+  const listo = ["listo","pagado","calificado"].includes(t.estado);
+  const pagado = ["pagado","calificado"].includes(t.estado);
+
+  // Cuanto ha pagado ya, y que le falta. Asi el total cobrado siempre
+  // cuadra con el total que se le mostro al pedir el trabajo.
+  const pagos = t.pagos || [];
+  const yaPago = pagos.reduce((s, x) => s + (x.monto || 0), 0);
+  const hizo = (tipo) => pagos.some(x => x.tipo === tipo);
+  const faltaAnticipo = !pagado && eco.anticipo > 0 && !hizo("anticipo");
+  const faltaSaldo = !pagado && eco.saldo > 0 && !hizo("saldo") && !faltaAnticipo;
+
+  const html = `
+    ${cab(t.servicioNombre, { volver:"trabajos", sub:t.folio || "" })}
+    <div class="cont vista">
+      <div class="pasos">
+        ${["asignado","en_camino","trabajando","listo"].map((e) =>
+          `<i class="${ESTADOS.indexOf(e) <= idx ? "ok" : ""}"></i>`).join("")}
+      </div>
+      <div class="pasos-txt">
+        ${["Asignado","En camino","Trabajando","Listo"].map((n, i) => {
+          const e = ["asignado","en_camino","trabajando","listo"][i];
+          return ESTADOS.indexOf(e) <= idx ? `<b>${n}</b>` : `<span>${n}</span>`;
+        }).join("")}
+      </div>
+
+      ${c ? `
+      <div class="tarjeta">
+        <div class="item" style="align-items:center">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--azul-luz);
+               color:var(--azul);display:flex;align-items:center;justify-content:center;
+               font-weight:700;font-size:14px">${esc(iniciales(c.nombre))}</div>
+          <div style="flex:1">
+            <p class="nom">${esc(c.nombre)}</p>
+            <p class="det">&#11088; ${c.rating} &middot; ${c.trabajos} trabajos &middot; Verificado</p>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="fila-btn">
+          <button class="btn btn-linea btn-chico" id="b-llamar">&#128222; Llamar</button>
+          <button class="btn btn-linea btn-chico" id="b-wa">&#128172; WhatsApp</button>
+        </div>
+      </div>` : `
+      <div class="tarjeta plana"><div class="cargando">Buscando tecnico disponible...</div></div>`}
+
+      ${["buscando","asignado","en_camino"].includes(t.estado) ? `
+      <div style="height:12px"></div>
+      <button class="btn btn-linea btn-chico" id="b-cancelar"
+        style="border-color:#E24B4A;color:#E24B4A">Cancelar esta solicitud</button>
+      <div id="err-cancelar"></div>` : ""}
+
+      <div class="dinero">
+        <div class="l"><span>Trabajo</span><span>${money(eco.base)}</span></div>
+        <div class="l"><span>Garantia MC2</span><span>${eco.tarifa ? money(eco.tarifa) : "Incluida"}</span></div>
+        <div class="l total"><span>Total</span><span>${money(eco.totalCliente)}</span></div>
+      </div>
+
+      <p class="det" style="font-size:12px;color:var(--gris-2)">
+        &#128205; ${esc(t.direccion)}${t.detalle ? " &middot; " + esc(t.detalle) : ""}
+      </p>
+
+      ${yaPago > 0 ? `
+        <div class="l" style="display:flex;justify-content:space-between;font-size:13px;
+             color:var(--verde-osc);padding:0 2px 8px">
+          <span>&#10004; Ya pagaste</span><span>${money(yaPago)}</span></div>` : ""}
+
+      ${faltaAnticipo ? `
+        <div style="height:14px"></div>
+        <button class="btn btn-azul" id="b-anticipo">
+          Pagar ${money(eco.anticipo)} con Yappy</button>
+        <p class="ayuda" style="text-align:center">
+          MC2 retiene tu plata hasta que apruebes el trabajo.</p>` : ""}
+
+      ${faltaSaldo ? `
+        <div style="height:14px"></div>
+        <button class="btn ${listo ? "btn-azul" : "btn-suave"}" id="b-pagar" ${listo ? "" : "disabled"}>
+          ${listo ? `Pagar ${money(eco.saldo)} con Yappy` : `Pagar ${money(eco.saldo)}`}
+        </button>
+        ${!listo ? `<p class="ayuda" style="text-align:center">
+          Se activa cuando el tecnico marque el trabajo como listo.</p>` : ""}` : ""}
+
+      ${pagado && !t.calificacion ? `
+        <div style="height:16px"></div>
+        <div class="tarjeta destacada">
+          <p class="seccion-tit">&iquest;Como te fue con ${esc(c ? c.nombre.split(" ")[0] : "el tecnico")}?</p>
+          <div style="display:flex;gap:6px;justify-content:center;margin:12px 0" id="estrellas">
+            ${[1,2,3,4,5].map(n => `<button data-n="${n}" style="background:none;border:0;
+              font-size:32px;cursor:pointer;filter:grayscale(1);opacity:.4">&#11088;</button>`).join("")}
+          </div>
+          <button class="btn btn-primario btn-chico" id="b-calificar" disabled>Enviar calificacion</button>
+        </div>` : ""}
+
+      ${t.calificacion ? `
+        <div class="aviso aviso-verde" style="margin-top:16px">
+          <b>&#9989; Trabajo terminado</b>
+          Calificaste con ${t.calificacion.estrellas} estrellas. Tienes garantia hasta dentro de 7 dias.
+        </div>` : ""}
+
+      ${modoDemo() && !listo ? `
+        <div style="height:20px"></div>
+        <button class="btn btn-suave btn-chico" id="b-simular">
+          &#9654; Simular siguiente paso (solo en demo)</button>` : ""}
+    </div>
+    ${barra("trabajos")}`;
+
+  function montar(el, { ir, recargar }) {
+    const $ = (q) => el.querySelector(q);
+    const tel = CONFIG.WHATSAPP_SOPORTE;
+    if ($("#b-llamar")) $("#b-llamar").onclick = () => location.href = `tel:+${tel}`;
+    if ($("#b-wa")) $("#b-wa").onclick = () =>
+      window.open(`https://wa.me/${tel}?text=${encodeURIComponent("Hola, es sobre el trabajo " + (t.folio || ""))}`, "_blank");
+
+    if ($("#b-cancelar")) $("#b-cancelar").onclick = async () => {
+      if (!confirm("Vas a cancelar esta solicitud. Si ya hay un tecnico asignado, " +
+                   "se le avisa que ya no vayas. Seguro?")) return;
+      const b = $("#b-cancelar"); b.disabled = true; b.textContent = "Cancelando...";
+      const r = await API.cancelarTrabajo(t.id, null);
+      if (r && r.ok) { ir("trabajos"); return; }
+      b.disabled = false; b.textContent = "Cancelar esta solicitud";
+      const c = $("#err-cancelar");
+      if (c) c.innerHTML = `<div class="aviso aviso-rojo" style="margin-top:9px">${
+        esc((r && r.error) || "No se pudo cancelar. Intenta de nuevo.")}</div>`;
+    };
+
+    if ($("#b-anticipo")) $("#b-anticipo").onclick = async () => {
+      const b = $("#b-anticipo"); b.disabled = true; b.textContent = "Procesando...";
+      await API.pagar(t.id, "anticipo");
+      recargar();
+    };
+
+    if ($("#b-pagar")) $("#b-pagar").onclick = async () => {
+      const b = $("#b-pagar"); b.disabled = true; b.textContent = "Procesando...";
+      await API.pagar(t.id, "saldo");
+      recargar();
+    };
+
+    if ($("#b-simular")) $("#b-simular").onclick = async () => {
+      const orden = ["asignado","en_camino","trabajando","listo"];
+      const i = orden.indexOf(t.estado);
+      await API.avanzar(t.id, orden[Math.min(i + 1, orden.length - 1)]);
+      recargar();
+    };
+
+    const cont = $("#estrellas");
+    if (cont) {
+      let elegidas = 0;
+      cont.querySelectorAll("button").forEach(b => {
+        b.onclick = () => {
+          elegidas = Number(b.dataset.n);
+          cont.querySelectorAll("button").forEach(x => {
+            const on = Number(x.dataset.n) <= elegidas;
+            x.style.filter = on ? "none" : "grayscale(1)";
+            x.style.opacity = on ? "1" : ".4";
+          });
+          $("#b-calificar").disabled = false;
+        };
+      });
+      $("#b-calificar").onclick = async () => {
+        if (!elegidas) return;
+        await API.calificar(t.id, elegidas);
+        recargar();
+      };
+    }
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 6. MIS TRABAJOS
+function vistaTrabajos(ctx) {
+  const lista = ctx.trabajos || [];
+  const html = `
+    ${cab("Mis trabajos")}
+    <div class="cont vista">
+      ${lista.length ? lista.map(t => `
+        <div class="tarjeta" data-abrir="${t.id}" style="cursor:pointer">
+          <div class="item">
+            <div style="flex:1">
+              <p class="nom">${esc(t.servicioNombre)}</p>
+              <p class="det">${esc(t.folio || "")} &middot; ${esc(fecha(t.creado))}</p>
+              <div style="margin-top:6px">
+                <span class="etiqueta ${etiqueta(t.estado)}">${esc(ESTADO_TXT[t.estado] || t.estado)}</span>
+              </div>
+            </div>
+            <div class="precio" style="font-size:17px">${money(t.eco?.totalCliente)}</div>
+          </div>
+        </div>`).join("") : `
+        <div class="vacio">
+          <span class="ico">&#128203;</span>
+          Todavia no has pedido ningun trabajo.
+          <div style="height:14px"></div>
+          <button class="btn btn-primario btn-chico" data-ir="inicio"
+            style="max-width:220px;margin:0 auto">Pedir mi primer trabajo</button>
+        </div>`}
+    </div>
+    ${barra("trabajos")}`;
+
+  function montar(el, { ir }) {
+    el.querySelectorAll("[data-abrir]").forEach(d => {
+      d.onclick = () => ir("trabajo", { id: d.dataset.abrir });
+    });
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ 7. PERFIL
+function vistaPerfil(ctx) {
+  const u = ctx.usuario || {};
+
+  // GASTADO ES LO QUE SALIO DEL BOLSILLO, NO LO QUE SE PIDIO.
+  //
+  // Antes esto sumaba TODOS los trabajos, sin mirar como terminaron.
+  // Alguien que pidio dos servicios y los cancelo a los cinco minutos
+  // veia "Gastado B/. 88.00" sin haber pagado un centavo. Y con razon
+  // desconfiaba: si la app se equivoca en lo unico que el puede
+  // verificar de memoria, por que le va a creer el resto.
+  //
+  // Solo cuenta lo que ya se pago. Un trabajo pedido, o en curso, o
+  // cancelado, todavia no es plata gastada.
+  const PAGADOS = ["pagado", "calificado", "en_garantia"];
+  const total = (ctx.trabajos || [])
+    .filter((t) => PAGADOS.includes(t.estado))
+    .reduce((s, t) => s + (t.eco?.totalCliente || 0), 0);
+
+  // Y los cancelados tampoco son "trabajos que tuve": no paso nada.
+  const cuantos = (ctx.trabajos || []).filter((t) => t.estado !== "cancelado").length;
+  const html = `
+    ${cab("Mi perfil")}
+    <div class="cont vista">
+      <div class="tarjeta">
+        <div class="item" style="align-items:center">
+          <div style="width:52px;height:52px;border-radius:50%;background:var(--azul-luz);
+               color:var(--azul);display:flex;align-items:center;justify-content:center;
+               font-weight:700;font-size:17px">${esc(iniciales(u.nombre || "MC2"))}</div>
+          <div style="flex:1">
+            <p class="nom" style="font-size:16px">${esc(u.nombre || "Invitado")}</p>
+            <p class="det">${esc(u.telefono || "")}</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <div class="tarjeta plana" style="flex:1;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:var(--azul)">${cuantos}</div>
+          <div class="det">Trabajos</div>
+        </div>
+        <div class="tarjeta plana" style="flex:1;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:var(--azul)">${money(total)}</div>
+          <div class="det">Gastado</div>
+        </div>
+      </div>
+
+      <div class="aviso aviso-azul">
+        <b>&#127970; &iquest;Administras un PH?</b>
+        Con la suscripcion mensual no pagas la tarifa de garantia, recibes factura
+        consolidada y credito a 30 dias.
+      </div>
+
+      ${u.rol === "staff_mc2" ? `
+        <button class="btn btn-azul" data-ir="p-cola">
+          &#128203; Panel de contratistas</button>
+        <div style="height:10px"></div>` : ""}
+
+      <button class="btn btn-linea btn-chico" id="b-soporte">&#128172; Escribir a soporte</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-suave btn-chico" id="b-salir">Cerrar sesion</button>
+
+      ${modoDemo() ? `
+        <div style="height:18px"></div>
+        <button class="btn btn-suave btn-chico" id="b-limpiar"
+          style="color:var(--rojo-osc)">Borrar los datos de prueba</button>` : ""}
+
+      <p class="ayuda" style="text-align:center;margin-top:20px">
+        ${esc(CONFIG.MARCA)} &middot; ${esc(CONFIG.NOMBRE_LARGO)}<br>Version 1.0
+      </p>
+    </div>
+    ${barra("perfil")}`;
+
+  function montar(el, { ir, salir }) {
+    el.querySelector("#b-salir").onclick = salir;
+    el.querySelector("#b-soporte").onclick = () =>
+      window.open(`https://wa.me/${CONFIG.WHATSAPP_SOPORTE}`, "_blank");
+    const lim = el.querySelector("#b-limpiar");
+    if (lim) lim.onclick = async () => { await API.borrarDemo(); location.reload(); };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------------------ auxiliares
+function iniciales(n) {
+  return String(n).trim().split(/\s+/).slice(0, 2).map(p => p[0] || "").join("").toUpperCase();
+}
+function fecha(iso) {
+  try {
+    return new Date(iso).toLocaleDateString("es-PA", { day:"2-digit", month:"short" });
+  } catch (e) { return ""; }
+}
+function etiqueta(estado) {
+  if (["pagado","calificado"].includes(estado)) return "et-verde";
+  if (estado === "buscando") return "et-gris";
+  if (estado === "cancelado") return "et-roja";
+  return "et-naranja";
+}
+
+return { esc, vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil };
+})();
+
+
+/* ===== vistas-contratista.js ===== */
+__M["vistas-contratista"] = (function(){
+// =====================================================================
+//  MC2 — PANTALLAS DEL CONTRATISTA  ("Banco MC2")
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG } = __M["config"];
+const { API, CATEGORIAS, servicioPorId, economia, money, modoDemo, ESTADO_TXT, URGENCIA_TXT, NIVELES, faltaParaSubir } = __M["datos"];
+const { esc } = __M["vistas"];
+
+const cab = (titulo, { volver = null, sub = null } = {}) => `
+  <div class="cab">
+    <div class="cab-fila">
+      ${volver ? `<button class="volver" data-ir="${volver}" aria-label="Volver">&#8592;</button>` : ""}
+      <div style="flex:1">
+        <h1>${esc(titulo)}</h1>
+        ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+
+const barra = (activo) => `
+  <nav class="barra">
+    <button data-ir="c-trabajos" class="${activo === "cerca" ? "activo" : ""}">
+      <span class="ico">&#128205;</span><span class="txt">Trabajos</span></button>
+    <button data-ir="c-agenda" class="${activo === "agenda" ? "activo" : ""}">
+      <span class="ico">&#128203;</span><span class="txt">Mi agenda</span></button>
+    <button data-ir="c-perfil" class="${activo === "perfil" ? "activo" : ""}">
+      <span class="ico">&#128176;</span><span class="txt">Banco MC2</span></button>
+  </nav>`;
+
+const etUrgencia = (u) =>
+  u === "emergencia" ? `<span class="etiqueta et-roja">EMERGENCIA</span>`
+  : u === "urgente"  ? `<span class="etiqueta et-naranja">Urgente</span>`
+  : `<span class="etiqueta et-gris">Normal</span>`;
+
+const iniciales = (n) => String(n || "").trim().split(/\s+/).slice(0,2)
+  .map(p => p[0] || "").join("").toUpperCase();
+
+// Le dice al contratista la verdad sobre el estado del pago del cliente.
+// Nunca le decimos que le pagaron si no le han pagado.
+function avisoPago(t, eco) {
+  const pagado = (t.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+  if (pagado >= eco.totalCliente) {
+    return `<div class="aviso aviso-verde" style="margin-top:10px">
+      <b>&#9989; El cliente ya pago todo</b>
+      MC2 tiene la plata retenida. Te cae a tu Yappy al dia siguiente de cerrar.</div>`;
+  }
+  if (pagado > 0) {
+    return `<div class="aviso aviso-verde" style="margin-top:10px">
+      <b>&#9989; El cliente ya adelanto ${money(pagado)}</b>
+      MC2 se la retiene. El resto lo paga al terminar.</div>`;
+  }
+  return `<div class="aviso aviso-naranja" style="margin-top:10px">
+    <b>&#9888;&#65039; Este cliente paga al terminar</b>
+    Todavia no ha pagado nada. Sube la foto del despues antes de irte:
+    es tu respaldo si hay algun problema con el cobro.</div>`;
+}
+
+function haceRato(iso) {
+  try {
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return "ahora";
+    if (m < 60) return `hace ${m} min`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `hace ${h} h`;
+    return `hace ${Math.round(h / 24)} d`;
+  } catch (e) { return ""; }
+}
+
+// ------------------------------------------------- 1. REGISTRO CONTRATISTA
+function vistaRegistroContratista() {
+  const html = `
+    <div class="cab" style="padding:24px 18px 20px">
+      <div class="cab-fila">
+        <button class="volver" data-ir="entrada" aria-label="Volver">&#8592;</button>
+        <div style="flex:1">
+          <h1>Trabaja con MC2</h1>
+          <div class="sub">Registro de contratista</div>
+        </div>
+      </div>
+    </div>
+    <div class="cont vista">
+      <div class="aviso aviso-naranja">
+        <b>&#127941; Eres de los primeros 20: Fundador MC2</b>
+        60 dias sin comision. Despues quedas en nivel Oro de por vida (8%),
+        cuando el que entre despues arranca en 12%.
+      </div>
+
+      <div id="err"></div>
+
+      <label for="g-nombre">Tu nombre completo</label>
+      <input id="g-nombre" type="text" placeholder="Julio Gonzalez" autocomplete="name">
+
+      <label for="g-tel">Tu celular</label>
+      <input id="g-tel" type="tel" inputmode="numeric" placeholder="6123-4567" autocomplete="tel">
+
+      <label for="g-ced">Cedula</label>
+      <input id="g-ced" type="text" placeholder="8-123-4567">
+
+      <label for="g-ruc">RUC (si tienes)</label>
+      <input id="g-ruc" type="text" placeholder="Opcional">
+
+      <label>&iquest;En que trabajas? Puedes elegir varias</label>
+      <div class="rejilla" id="g-cats" style="grid-template-columns:repeat(3,1fr)">
+        ${CATEGORIAS.map(c => `
+          <button class="serv" data-cat="${c.id}" style="background:var(--gris-luz)">
+            <span class="ico">${c.ico}</span>
+            <span class="txt" style="color:var(--gris)">${esc(c.nombre)}</span>
+          </button>`).join("")}
+      </div>
+
+      <label for="g-clave">Crea una clave</label>
+      <input id="g-clave" type="password" placeholder="Minimo 6 caracteres">
+
+      <div style="height:16px"></div>
+      <button class="btn btn-primario" id="g-crear">Registrarme como contratista</button>
+
+      <div class="aviso aviso-azul" style="margin-top:16px">
+        <b>&#128203; Lo que falta despues del registro</b>
+        Para quedar verificado te vamos a pedir foto de la cedula, tu poliza de
+        seguro y dos referencias de clientes que podamos llamar. Mientras tanto
+        puedes ver los trabajos disponibles.
+      </div>
+    </div>`;
+
+  function montar(el, { ir }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+    const cats = new Set();
+
+    el.querySelectorAll("#g-cats [data-cat]").forEach(b => {
+      b.onclick = () => {
+        const id = b.dataset.cat;
+        if (cats.has(id)) {
+          cats.delete(id);
+          b.style.background = "var(--gris-luz)";
+          b.querySelector(".txt").style.color = "var(--gris)";
+        } else {
+          cats.add(id);
+          b.style.background = "var(--azul-luz)";
+          b.querySelector(".txt").style.color = "var(--azul)";
+        }
+      };
+    });
+
+    $("#g-crear").onclick = async () => {
+      const nombre = $("#g-nombre").value.trim();
+      const telefono = $("#g-tel").value.trim();
+      const cedula = $("#g-ced").value.trim();
+      const clave = $("#g-clave").value;
+      if (nombre.length < 3) return err("Escribe tu nombre completo.");
+      if (telefono.replace(/\D/g,"").length < 7) return err("Escribe un celular valido.");
+      if (cedula.length < 4) return err("Escribe tu numero de cedula.");
+      if (cats.size === 0) return err("Elige al menos un tipo de trabajo.");
+      if (clave.length < 6) return err("La clave debe tener al menos 6 caracteres.");
+
+      const b = $("#g-crear");
+      b.disabled = true; b.textContent = "Registrando...";
+      try {
+        const u = await API.registrar({
+          nombre, telefono, clave, rol:"contratista",
+          cedula, ruc:$("#g-ruc").value.trim(), cats:[...cats]
+        });
+        ir("c-trabajos", {}, u);
+      } catch (e) {
+        err(e.message || "Algo fallo.");
+        b.disabled = false; b.textContent = "Registrarme como contratista";
+      }
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------- 2. TRABAJOS CERCA
+function vistaTrabajosCerca(ctx) {
+  const p = ctx.contratista || {};
+  const bill = ctx.billetera || { semana:0, trabajosSemana:0 };
+  const lista = ctx.cerca || [];
+  const activos = (ctx.misTrabajos || []).filter(t =>
+    ["asignado","en_camino","trabajando"].includes(t.estado));
+
+  const html = `
+    <div class="cab">
+      <div class="cab-fila">
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--azul-2);
+             display:flex;align-items:center;justify-content:center;font-weight:700;
+             font-size:13px">${esc(iniciales(p.nombre))}</div>
+        <div style="flex:1">
+          <h1 style="font-size:15px">${esc(p.nombre || "Contratista")}</h1>
+          <div class="sub">&#11088; ${(p.rating || 0).toFixed(1)} &middot;
+            Nivel ${esc(NIVELES[p.nivel]?.nombre || "Bronce")} &middot;
+            ${NIVELES[p.nivel]?.pct ?? 12}% comision</div>
+        </div>
+        <button id="b-disp" class="etiqueta ${p.disponible ? "et-verde" : "et-gris"}"
+          style="border:0;cursor:pointer;padding:7px 12px;font-size:11px">
+          ${p.disponible ? "Disponible" : "No disponible"}
+        </button>
+      </div>
+      <div style="margin-top:11px;background:var(--azul-2);border-radius:10px;
+           padding:9px 12px;display:flex;justify-content:space-between">
+        <div><div style="font-size:10.5px;color:#85B7EB">Esta semana</div>
+          <div style="font-size:16px;font-weight:700">${money(bill.semana)}</div></div>
+        <div style="text-align:right"><div style="font-size:10.5px;color:#85B7EB">Trabajos</div>
+          <div style="font-size:16px;font-weight:700">${bill.trabajosSemana}</div></div>
+      </div>
+    </div>
+    <div class="cont vista">
+      <div id="caja-avisos"></div>
+
+      ${activos.length ? `
+        <p class="seccion-tit">En curso</p>
+        ${activos.map(t => tarjetaTrabajo(t, true)).join("")}
+        <div style="height:8px"></div>` : ""}
+
+      ${!p.disponible ? `
+        <div class="aviso aviso-naranja">
+          <b>Estas en No disponible</b>
+          No te van a llegar trabajos nuevos hasta que actives el boton de arriba.
+        </div>` : ""}
+
+      <p class="seccion-tit">${lista.length} trabajo${lista.length === 1 ? "" : "s"} cerca de ti</p>
+
+      ${lista.length ? lista.map(t => tarjetaTrabajo(t, false)).join("") : `
+        <div class="vacio">
+          <span class="ico">&#128269;</span>
+          No hay trabajos disponibles en tu zona ahorita.
+          <div style="font-size:12.5px;margin-top:8px">${estadoAvisos().estado === "activo"
+            ? "Te suena el celular apenas entre uno."
+            : "Activa los avisos arriba para que te suene el celular."}</div>
+        </div>`}
+    </div>
+    ${barra("cerca")}`;
+
+  function tarjetaTrabajo(t, enCurso) {
+    const serv = servicioPorId(t.servicioId);
+    const eco = t.eco || economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:p.nivel });
+    return `
+      <div class="tarjeta ${t.urgencia === "emergencia" && !enCurso ? "destacada" : ""}"
+           data-abrir="${t.id}" style="cursor:pointer">
+        <div class="item">
+          <div style="flex:1">
+            ${enCurso ? `<span class="etiqueta et-azul">${esc(ESTADO_TXT[t.estado])}</span>`
+                      : etUrgencia(t.urgencia)}
+            <p class="nom" style="margin-top:6px">${esc(t.servicioNombre || serv?.nombre || "Trabajo")}</p>
+            <p class="det">${esc(t.direccion)}</p>
+            <p class="det">${t.distancia ? t.distancia + " km &middot; " : ""}${esc(haceRato(t.creado))}</p>
+          </div>
+          <div style="text-align:right">
+            <div class="precio">${CONFIG.MONEDA} ${eco.base}</div>
+            <div class="neto">recibes ${eco.netoContratista.toFixed(2)}</div>
+          </div>
+        </div>
+        ${!enCurso ? `<div style="height:9px"></div>
+          <button class="btn btn-azul btn-chico" data-aceptar="${t.id}">Aceptar trabajo</button>` : ""}
+      </div>`;
+  }
+
+  function montar(el, { ir, recargar }) {
+    pintarCajaAvisos(el);
+
+    el.querySelectorAll("[data-abrir]").forEach(d => {
+      d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
+    });
+    el.querySelectorAll("[data-aceptar]").forEach(b => {
+      b.onclick = async (ev) => {
+        ev.stopPropagation();
+        b.disabled = true; b.textContent = "Aceptando...";
+        try {
+          const t = await API.aceptarTrabajo(b.dataset.aceptar);
+          if (t) ir("c-trabajo", { id: t.id });
+          else { b.disabled = false; b.textContent = "Ya lo tomo otro tecnico"; }
+        } catch (e) {
+          b.disabled = false; b.textContent = "Aceptar trabajo";
+          alert(e && e.message ? e.message : "No se pudo aceptar. Intenta de nuevo.");
+        }
+      };
+    });
+    el.querySelector("#b-disp").onclick = async () => {
+      await API.setDisponible(!p.disponible);
+      recargar();
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------- 3. DETALLE DEL TRABAJO
+function vistaTrabajoContratista(ctx) {
+  const t = ctx.trabajo;
+  const p = ctx.contratista || {};
+  if (!t) return { html:`${cab("Trabajo", { volver:"c-trabajos" })}
+    <div class="cont"><div class="vacio">No encontramos ese trabajo.</div></div>`, montar(){} };
+
+  const serv = servicioPorId(t.servicioId);
+  const eco = t.eco || economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:p.nivel });
+  const mio = t.contratistaId && (t.contratistaId === p.id || modoDemo());
+  const cerrado = ["listo","pagado","calificado"].includes(t.estado);
+
+  const siguiente = { asignado:"en_camino", en_camino:"trabajando" }[t.estado];
+  const txtSiguiente = { asignado:"Voy en camino", en_camino:"Llegue, empiezo el trabajo" }[t.estado];
+
+  const html = `
+    ${cab(t.servicioNombre || serv?.nombre || "Trabajo", { volver:"c-trabajos", sub:t.folio || "" })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      <div style="margin-bottom:12px">${etUrgencia(t.urgencia)}
+        <span class="etiqueta et-azul" style="margin-left:5px">
+          ${esc((t.tipoPropiedad || "").toUpperCase())}</span></div>
+
+      <div class="tarjeta">
+        <p class="seccion-tit">Donde</p>
+        <p style="margin:0;font-size:14.5px;font-weight:600">${esc(t.direccion)}</p>
+        ${t.detalle ? `<p class="det">${esc(t.detalle)}</p>` : ""}
+        <div style="height:10px"></div>
+        <button class="btn btn-linea btn-chico" id="b-mapa">&#128506; Como llegar</button>
+        ${t.lat && t.lng ? `<p class="ayuda">Ubicacion exacta por GPS del cliente.</p>` : ""}
+      </div>
+
+      ${t.descripcion ? `
+        <div class="tarjeta plana">
+          <p class="seccion-tit">Lo que dice el cliente</p>
+          <p style="margin:0;font-size:14px">${esc(t.descripcion)}</p>
+        </div>` : ""}
+
+      ${t.foto ? `
+        <p class="seccion-tit">Foto del dano</p>
+        <img class="foto-previa" src="${t.foto}" alt="Foto del dano"
+             style="margin-bottom:12px">` : ""}
+
+      <div class="dinero">
+        <div class="l"><span>Precio del trabajo</span><span>${money(eco.base)}</span></div>
+        <div class="l"><span>Comision MC2 (${eco.comisionPct}%)</span>
+          <span style="color:var(--rojo-osc)">- ${money(eco.comision)}</span></div>
+        <div class="l total"><span>Recibes</span>
+          <span style="color:var(--verde-osc)">${money(eco.netoContratista)}</span></div>
+      </div>
+      ${avisoPago(t, eco)}
+
+      ${!mio ? `
+        <div style="height:14px"></div>
+        <button class="btn btn-azul" id="b-aceptar">Aceptar trabajo</button>` : ""}
+
+      ${mio && siguiente ? `
+        <div style="height:14px"></div>
+        <button class="btn btn-primario" id="b-avanzar">${txtSiguiente}</button>` : ""}
+
+      ${mio && t.estado === "trabajando" ? `
+        <div style="height:14px"></div>
+        <button class="btn btn-primario" data-ir="c-cobrar" data-id="${t.id}">
+          Terminar y cobrar</button>` : ""}
+
+      ${mio && ["asignado","en_camino"].includes(t.estado) ? `
+        <div style="height:22px"></div>
+        <button class="btn btn-linea btn-chico" id="b-soltar"
+          style="border-color:#E24B4A;color:#E24B4A">No puedo ir, soltar este trabajo</button>
+        <p class="ayuda" style="margin-top:7px">
+          Vuelve a la bolsa para que otro tecnico lo tome. Queda anotado en tu ficha,
+          asi que no lo uses seguido.
+        </p>
+        <div id="err-soltar"></div>` : ""}
+
+      ${cerrado ? `
+        <div class="aviso aviso-verde" style="margin-top:14px">
+          <b>&#9989; Trabajo cerrado</b>
+          ${t.estado === "listo" ? `Esperando que el cliente pague el saldo.`
+            : `Cobrado. ${money(eco.netoContratista)} en tu billetera.`}
+        </div>` : ""}
+
+      ${mio && !cerrado ? `
+        <div style="height:10px"></div>
+        <button class="btn btn-suave btn-chico" id="b-cliente">&#128172; Escribir al cliente</button>` : ""}
+    </div>
+    ${barra("cerca")}`;
+
+  function montar(el, { ir, recargar }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+
+    $("#b-mapa").onclick = () => {
+      // Si el cliente uso el GPS, mandamos al tecnico a las coordenadas
+      // exactas. Es la diferencia entre llegar al edificio o dar vueltas.
+      if (t.lat && t.lng) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`, "_blank");
+        return;
+      }
+      const q = encodeURIComponent(`${t.direccion} ${t.detalle || ""} Panama`);
+      window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, "_blank");
+    };
+
+    if ($("#b-cliente")) $("#b-cliente").onclick = () =>
+      window.open(`https://wa.me/${CONFIG.WHATSAPP_SOPORTE}?text=${
+        encodeURIComponent("Hola, soy el tecnico de MC2 del trabajo " + (t.folio || ""))}`, "_blank");
+
+    if ($("#b-aceptar")) $("#b-aceptar").onclick = async () => {
+      const b = $("#b-aceptar"); b.disabled = true; b.textContent = "Aceptando...";
+      try {
+        const r = await API.aceptarTrabajo(t.id);
+        // ANTES esto no se miraba: si otro se te adelantaba, la pantalla
+        // recargaba sin decir nada y parecia una falla de la app.
+        if (!r) {
+          b.textContent = "Ya lo tomo otro tecnico";
+          err("Otro tecnico lo acepto primero. Ya no esta disponible.");
+          setTimeout(recargar, 1500);
+          return;
+        }
+        recargar();
+      } catch (e) {
+        // Se muestra lo que dijo la base, no una suposicion. Si algun
+        // dia vuelve a fallar algo, se va a ver que fue.
+        err(e && e.message ? e.message : "No se pudo aceptar. Intenta de nuevo.");
+        b.disabled = false; b.textContent = "Aceptar trabajo";
+      }
+    };
+
+    if ($("#b-soltar")) $("#b-soltar").onclick = async () => {
+      const motivo = prompt("Por que no puedes ir? (opcional, lo ve solo MC2)");
+      if (motivo === null) return;   // le dio a cancelar
+      const b = $("#b-soltar"); b.disabled = true; b.textContent = "Soltando...";
+      const r = await API.soltarTrabajo(t.id, motivo);
+      if (r && r.ok) { ir("c-trabajos"); return; }
+      b.disabled = false; b.textContent = "No puedo ir, soltar este trabajo";
+      const c = $("#err-soltar");
+      if (c) c.innerHTML = `<div class="aviso aviso-rojo" style="margin-top:9px">${
+        esc((r && r.error) || "No se pudo soltar. Intenta de nuevo.")}</div>`;
+    };
+
+    if ($("#b-avanzar")) $("#b-avanzar").onclick = async () => {
+      await API.avanzar(t.id, siguiente);
+      recargar();
+    };
+
+    const bc = el.querySelector('[data-ir="c-cobrar"]');
+    if (bc) bc.onclick = () => ir("c-cobrar", { id: t.id });
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------- 4. COBRAR
+function vistaCobrar(ctx) {
+  const t = ctx.trabajo;
+  const p = ctx.contratista || {};
+  if (!t) return { html:`${cab("Cobrar", { volver:"c-trabajos" })}
+    <div class="cont"><div class="vacio">No encontramos ese trabajo.</div></div>`, montar(){} };
+
+  const serv = servicioPorId(t.servicioId);
+  const eco = t.eco || economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:p.nivel });
+
+  const html = `
+    ${cab("Terminar y cobrar", { volver:"c-trabajos", sub:t.servicioNombre || serv?.nombre })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      <div class="aviso aviso-naranja">
+        <b>&#128247; La foto del despues es obligatoria</b>
+        Es tu respaldo. Si el cliente reclama, la foto te protege a ti.
+      </div>
+
+      ${t.foto ? `
+        <p class="seccion-tit">Antes</p>
+        <img class="foto-previa" src="${t.foto}" alt="Antes" style="margin-bottom:14px">` : ""}
+
+      <p class="seccion-tit">Despues</p>
+      <div class="foto-zona" id="zona-foto">
+        <span class="ico">&#128247;</span>
+        <span class="t">Tomar la foto del trabajo terminado</span>
+        <span class="s">Sin esta foto no se puede cerrar</span>
+      </div>
+      <input type="file" id="f-despues" accept="image/*" capture="environment" style="display:none">
+      <div id="previa"></div>
+
+      <label for="f-mat">Materiales que usaste (opcional)</label>
+      <textarea id="f-mat" placeholder="Empaque de 1/2, teflon"></textarea>
+
+      <div class="dinero">
+        <div class="l"><span>Precio del trabajo</span><span>${money(eco.base)}</span></div>
+        <div class="l"><span>Comision MC2 (${eco.comisionPct}%)</span>
+          <span style="color:var(--rojo-osc)">- ${money(eco.comision)}</span></div>
+        <div class="l total"><span>Recibes</span>
+          <span style="color:var(--verde-osc)">${money(eco.netoContratista)}</span></div>
+      </div>
+
+      <button class="btn btn-primario" id="b-finalizar" disabled>Finalizar trabajo</button>
+      <p class="ayuda" style="text-align:center">
+        El cliente paga el saldo y tu plata queda disponible al dia siguiente.
+      </p>
+
+      <div class="aviso aviso-azul" style="margin-top:16px">
+        <b>&#128737; Garantia de 7 dias</b>
+        El cliente tiene 7 dias de garantia. Un buen cierre con foto es lo que
+        te sube a 5 estrellas, y las estrellas te bajan la comision.
+      </div>
+    </div>`;
+
+  function montar(el, { ir }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+    let foto = t.fotoDespues || null;
+    if (foto) {
+      $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Despues">`;
+      $("#zona-foto").style.display = "none";
+      $("#b-finalizar").disabled = false;
+    }
+
+    $("#zona-foto").onclick = () => $("#f-despues").click();
+    $("#f-despues").onchange = (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (f.size > 6 * 1024 * 1024) return err("La foto pesa mucho. Toma una mas liviana.");
+      const lector = new FileReader();
+      lector.onload = () => {
+        foto = lector.result;
+        $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Despues">`;
+        $("#zona-foto").style.display = "none";
+        $("#b-finalizar").disabled = false;
+        err("");
+      };
+      lector.readAsDataURL(f);
+    };
+
+    $("#b-finalizar").onclick = async () => {
+      if (!foto) return err("Falta la foto del despues.");
+      const b = $("#b-finalizar");
+      b.disabled = true; b.textContent = "Cerrando...";
+      try {
+        await API.guardarFotoDespues(t.id, foto);
+        await API.finalizarTrabajo(t.id);
+        ir("c-perfil", {});
+      } catch (e) {
+        err(e.message || "No se pudo finalizar.");
+        b.disabled = false; b.textContent = "Finalizar trabajo";
+      }
+    };
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------- 5. AGENDA
+function vistaAgenda(ctx) {
+  const lista = ctx.misTrabajos || [];
+  const p = ctx.contratista || {};
+  const html = `
+    ${cab("Mi agenda", { sub:`${lista.length} trabajo${lista.length === 1 ? "" : "s"} en total` })}
+    <div class="cont vista">
+      ${lista.length ? lista.map(t => {
+        const serv = servicioPorId(t.servicioId);
+        const eco = t.eco || economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:p.nivel });
+        return `
+        <div class="tarjeta" data-abrir="${t.id}" style="cursor:pointer">
+          <div class="item">
+            <div style="flex:1">
+              <span class="etiqueta ${["pagado","calificado"].includes(t.estado) ? "et-verde"
+                : t.estado === "listo" ? "et-azul" : "et-naranja"}">
+                ${esc(ESTADO_TXT[t.estado] || t.estado)}</span>
+              <p class="nom" style="margin-top:6px">${esc(t.servicioNombre || serv?.nombre)}</p>
+              <p class="det">${esc(t.direccion)}</p>
+            </div>
+            <div style="text-align:right">
+              <div class="precio" style="font-size:17px">${money(eco.netoContratista)}</div>
+              <div class="det">tu neto</div>
+            </div>
+          </div>
+        </div>`; }).join("") : `
+        <div class="vacio">
+          <span class="ico">&#128203;</span>
+          Todavia no has aceptado ningun trabajo.
+          <div style="height:14px"></div>
+          <button class="btn btn-azul btn-chico" data-ir="c-trabajos"
+            style="max-width:230px;margin:0 auto">Ver trabajos cerca</button>
+        </div>`}
+    </div>
+    ${barra("agenda")}`;
+
+  function montar(el, { ir }) {
+    el.querySelectorAll("[data-abrir]").forEach(d => {
+      d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
+    });
+  }
+  return { html, montar };
+}
+
+// ------------------------------------------------- 6. PERFIL / BANCO MC2
+function vistaPerfilContratista(ctx) {
+  const p = ctx.contratista || {};
+  const b = ctx.billetera || { disponible:0, transito:0 };
+  const nivel = NIVELES[p.nivel] || NIVELES.bronce;
+  const sube = faltaParaSubir(p.trabajos || 0, p.rating || 0);
+  const ver = p.ver || {};
+  const checks = [
+    ["Cedula", ver.cedula], ["RUC", ver.ruc], ["Seguro", ver.seguro],
+    ["2 referencias", ver.referencias], ["Prueba tecnica", ver.prueba]
+  ];
+  const listos = checks.filter(c => c[1]).length;
+
+  const html = `
+    ${cab("Banco MC2")}
+    <div class="cont vista">
+      <div class="tarjeta">
+        <div class="item" style="align-items:center">
+          <div style="width:54px;height:54px;border-radius:50%;background:var(--azul-luz);
+               color:var(--azul);display:flex;align-items:center;justify-content:center;
+               font-weight:700;font-size:18px">${esc(iniciales(p.nombre))}</div>
+          <div style="flex:1">
+            <p class="nom" style="font-size:16px">${esc(p.nombre || "Contratista")}</p>
+            <p class="det">&#11088; ${(p.rating || 0).toFixed(1)} &middot;
+              ${p.trabajos || 0} trabajos completados</p>
+            <div style="margin-top:5px">
+              <span class="etiqueta et-naranja">Nivel ${esc(nivel.nombre)} &middot; ${nivel.pct}%</span>
+              ${p.esFundador ? `<span class="etiqueta et-azul" style="margin-left:4px">Fundador</span>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${sube ? `
+        <div class="aviso aviso-naranja">
+          <b>Te faltan ${sube.faltan} trabajos para ${esc(sube.nivel)}</b>
+          En ${esc(sube.nivel)} tu comision baja a ${sube.pct}%.
+        </div>` : `
+        <div class="aviso aviso-verde">
+          <b>&#127942; Estas en el nivel maximo</b>
+          Pagas la comision mas baja de MC2.
+        </div>`}
+
+      <p class="seccion-tit" style="margin-top:16px">Tu billetera</p>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div class="tarjeta plana" style="flex:1;text-align:center;margin:0">
+          <div style="font-size:22px;font-weight:700;color:var(--verde-osc)">${money(b.disponible)}</div>
+          <div class="det">Disponible</div>
+        </div>
+        <div class="tarjeta plana" style="flex:1;text-align:center;margin:0">
+          <div style="font-size:22px;font-weight:700;color:var(--gris)">${money(b.transito)}</div>
+          <div class="det">En transito</div>
+        </div>
+      </div>
+      <button class="btn btn-azul" id="b-retirar" ${b.disponible <= 0 ? "disabled" : ""}>
+        Retirar a mi Yappy</button>
+      <p class="ayuda" style="text-align:center">
+        "En transito" es plata de trabajos que ya terminaste pero el cliente
+        no ha pagado el saldo todavia.</p>
+
+      <p class="seccion-tit" style="margin-top:20px">Verificacion (${listos} de 5)</p>
+      <div class="tarjeta">
+        ${checks.map(([n, ok]) => `
+          <div style="display:flex;justify-content:space-between;padding:7px 0;
+               border-bottom:1px solid var(--gris-luz);font-size:14px">
+            <span>${esc(n)}</span>
+            <span style="color:${ok ? "var(--verde-osc)" : "var(--gris-2)"};font-weight:600">
+              ${ok ? "&#10004; Listo" : "Pendiente"}</span>
+          </div>`).join("")}
+        <div style="height:10px"></div>
+        <button class="btn btn-linea btn-chico" id="b-verificar">
+          Mandar mis documentos por WhatsApp</button>
+      </div>
+
+      <p class="seccion-tit" style="margin-top:18px">Tus especialidades</p>
+      <div class="tarjeta plana">
+        ${(p.cats || []).map(id => {
+          const c = CATEGORIAS.find(x => x.id === id);
+          return `<span class="etiqueta et-azul" style="margin:3px 4px 3px 0;display:inline-block">
+            ${c ? c.ico + " " + esc(c.nombre) : esc(id)}</span>`;
+        }).join("") || `<span class="det">Sin especialidades</span>`}
+      </div>
+
+      <div class="aviso aviso-azul" style="margin-top:16px">
+        <b>&#9888;&#65039; Como funciona tu reputacion</b>
+        Si bajas de 4.5 estrellas dejas de recibir trabajos de PH, que son los
+        mejor pagados. Cada trabajo bien cerrado con foto te sube.
+      </div>
+
+      <button class="btn btn-suave btn-chico" id="b-salir">Cerrar sesion</button>
+
+      ${modoDemo() ? `
+        <div style="height:14px"></div>
+        <button class="btn btn-suave btn-chico" id="b-limpiar"
+          style="color:var(--rojo-osc)">Borrar los datos de prueba</button>` : ""}
+    </div>
+    ${barra("perfil")}`;
+
+  function montar(el, { ir, salir, recargar }) {
+    const $ = (q) => el.querySelector(q);
+    $("#b-salir").onclick = salir;
+    $("#b-verificar").onclick = () =>
+      window.open(`https://wa.me/${CONFIG.WHATSAPP_SOPORTE}?text=${
+        encodeURIComponent("Hola, soy " + (p.nombre || "") + ". Mando mis documentos para verificarme en MC2.")}`, "_blank");
+    $("#b-retirar").onclick = async () => {
+      const btn = $("#b-retirar");
+      btn.disabled = true; btn.textContent = "Enviando a Yappy...";
+      try { await API.retirar(b.disponible); recargar(); }
+      catch (e) { btn.disabled = false; btn.textContent = "Retirar a mi Yappy"; }
+    };
+    const lim = $("#b-limpiar");
+    if (lim) lim.onclick = async () => { await API.borrarDemo(); location.reload(); };
+  }
+  return { html, montar };
+}
+
+return { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, vistaCobrar, vistaAgenda, vistaPerfilContratista };
+})();
+
+
+/* ===== vistas-panel.js ===== */
+__M["vistas-panel"] = (function(){
+// =====================================================================
+//  MC2 — PANEL DE LEO
+//  Aqui se aprueba o se rechaza a cada contratista.
+//  Solo lo ve quien tenga rol "staff_mc2". Y aunque alguien llegara a
+//  esta pantalla por las malas, la base de datos no le devolveria nada.
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG } = __M["config"];
+const { API, CATEGORIAS, NIVELES } = __M["datos"];
+const { esc } = __M["vistas"];
+
+const cab = (titulo, { volver = null, sub = null } = {}) => `
+  <div class="cab">
+    <div class="cab-fila">
+      ${volver ? `<button class="volver" data-ir="${volver}" aria-label="Volver">&#8592;</button>` : ""}
+      <div style="flex:1">
+        <h1>${esc(titulo)}</h1>
+        ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+
+const iniciales = (n) => String(n || "").trim().split(/\s+/).slice(0, 2)
+  .map(p => p[0] || "").join("").toUpperCase();
+
+const fecha = (iso) => {
+  try { return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short" }); }
+  catch (e) { return ""; }
+};
+
+// LAS CUATRO QUE ABREN LA PUERTA.
+//
+// Antes eran siete e incluian RUC y poliza de seguro. El contratista
+// que MC2 busca —el independiente que se mueve, sin oficina y sin
+// planilla— casi nunca tiene poliza y muchas veces no tiene RUC.
+// Pedirle eso el primer dia era cerrarle la puerta al mercado al que
+// se apunta.
+//
+// Estas cuatro contestan las dos preguntas que de verdad le importan
+// al cliente: quien entra a mi casa, y sabe hacerlo. Y ninguna le
+// cuesta plata al contratista.
+const REQUISITOS = [
+  ["ver_cedula",         "Cedula"],
+  ["ver_referencias",    "Dos referencias llamadas"],
+  ["ver_prueba_tecnica", "Prueba tecnica"]
+];
+
+// Estas NO impiden trabajar. Se anotan porque sirven: quien tiene RUC
+// puede facturar, y quien tiene poliza propia puede ir a trabajos
+// grandes. La cobertura del dia a dia la pone la poliza colectiva de
+// MC2, no el contratista.
+const OPCIONALES = [
+  ["ver_ruc",    "RUC"],
+  ["ver_seguro", "Poliza propia"]
+];
+
+// La idoneidad se pide SEGUN EL OFICIO, no a todo el mundo.
+//
+// Electricidad y plomeria si la piden. La plomeria en Panama toca
+// tuberia de gas y eso quedo muy regulado despues de varios
+// accidentes. Pintura, cerrajeria y A/C no.
+//
+// Y el gas ademas pide un SEGUNDO papel, de otra institucion: la
+// Licencia Tipo A del Cuerpo de Bomberos. Con la idoneidad de la Junta
+// Tecnica sola NO alcanza para tocar una instalacion de gas.
+//
+// Quien manda de verdad es la tabla de categorias en la base de datos
+// (requiere_idoneidad y requiere_licencia_gas). Esto de aqui es solo
+// para pintar la pantalla.
+const CATEGORIAS_CON_IDONEIDAD = ["electricidad", "plomeria", "gas"];
+const CATEGORIAS_CON_GAS       = ["gas"];
+
+function cuantosListos(c) {
+  let n = REQUISITOS.filter(([k]) => c[k]).length;
+  if (c.antecedentes_estado === "aprobado") n++;
+  return n;
+}
+const TOTAL_REQUISITOS = REQUISITOS.length + 1;   // +1 por antecedentes
+
+// ------------------------------------------------- 1. COLA DE VERIFICACION
+function vistaPanel(ctx) {
+  const lista = ctx.cola || [];
+  const pendientes = lista.filter(c => !c.activo && c.verificacion !== "rechazado");
+  const activos    = lista.filter(c => c.activo);
+  const fuera      = lista.filter(c => c.verificacion === "rechazado" || c.suspendido);
+
+  const tarjeta = (c) => {
+    const listos = cuantosListos(c);
+    return `
+    <div class="tarjeta ${c.activo ? "" : "destacada"}" data-ver="${c.id}" style="cursor:pointer">
+      <div class="item" style="align-items:center">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--azul-luz);
+             color:var(--azul);display:flex;align-items:center;justify-content:center;
+             font-weight:700;font-size:13px">${esc(iniciales(c.nombre))}</div>
+        <div style="flex:1">
+          <p class="nom">${esc(c.nombre || "Sin nombre")}</p>
+          <p class="det">${esc(c.telefono || "")} &middot; entro el ${esc(fecha(c.creado))}</p>
+          <div style="margin-top:5px">
+            ${c.activo
+              ? `<span class="etiqueta et-verde">Activo</span>`
+              : c.verificacion === "rechazado"
+                ? `<span class="etiqueta et-roja">Rechazado</span>`
+                : c.suspendido
+                  ? `<span class="etiqueta et-roja">Suspendido</span>`
+                  : `<span class="etiqueta ${listos >= 3 ? "et-naranja" : "et-gris"}">${listos} de ${TOTAL_REQUISITOS} requisitos</span>`}
+          </div>
+        </div>
+        <span style="font-size:20px;color:var(--gris-2)">&rsaquo;</span>
+      </div>
+    </div>`;
+  };
+
+  const html = `
+    ${cab("Contratistas", { sub: `${pendientes.length} por revisar` })}
+    <div class="cont vista">
+      ${lista.length === 0 ? `
+        <div class="vacio">
+          <span class="ico">&#128203;</span>
+          Todavia no se ha registrado ningun contratista.
+          <div style="font-size:12.5px;margin-top:10px;line-height:1.5">
+            Cuando alguien se registre desde "Soy contratista",<br>aparece aqui para que lo revises.
+          </div>
+        </div>` : ""}
+
+      ${pendientes.length ? `
+        <p class="seccion-tit">Por revisar</p>
+        ${pendientes.map(tarjeta).join("")}` : ""}
+
+      ${activos.length ? `
+        <p class="seccion-tit" style="margin-top:18px">Activos (${activos.length})</p>
+        ${activos.map(tarjeta).join("")}` : ""}
+
+      ${fuera.length ? `
+        <p class="seccion-tit" style="margin-top:18px">Fuera de la plataforma</p>
+        ${fuera.map(tarjeta).join("")}` : ""}
+
+      <div class="aviso aviso-azul" style="margin-top:20px">
+        <b>&#9888;&#65039; Nadie trabaja sin los 7 requisitos</b>
+        Un contratista puede entrar a la app y ver como funciona, pero no le
+        aparece ni un solo trabajo hasta que tu lo actives aqui.
+      </div>
+    </div>
+    ${barraPanel("cola")}`;
+
+  function montar(el, { ir }) {
+    el.querySelectorAll("[data-ver]").forEach(d => {
+      d.onclick = () => ir("p-contratista", { id: d.dataset.ver });
+    });
+  }
+  return { html, montar };
+}
+
+const barraPanel = (activo) => `
+  <nav class="barra">
+    <button data-ir="p-cola" class="${activo === "cola" ? "activo" : ""}">
+      <span class="ico">&#128203;</span><span class="txt">Contratistas</span></button>
+    <button data-ir="inicio">
+      <span class="ico">&#127968;</span><span class="txt">Ver como cliente</span></button>
+    <button data-ir="perfil">
+      <span class="ico">&#128100;</span><span class="txt">Mi cuenta</span></button>
+  </nav>`;
+
+// ------------------------------------------------- 2. FICHA DEL CONTRATISTA
+function vistaContratistaDetalle(ctx) {
+  const c = ctx.contratista;
+  if (!c) return {
+    html: `${cab("Contratista", { volver: "p-cola" })}
+      <div class="cont"><div class="vacio">No encontramos a esa persona.</div></div>`,
+    montar() {}
+  };
+
+  const listos = cuantosListos(c);
+  const completo = listos === TOTAL_REQUISITOS;
+  // ¿Se anoto en un oficio que por ley pide idoneidad?
+  const necesitaIdoneidad = (c.cats || []).some(id => CATEGORIAS_CON_IDONEIDAD.includes(id));
+  const idoneidadOk = c.idoneidad_estado === "aprobado";
+  const necesitaGas = (c.cats || []).some(id => CATEGORIAS_CON_GAS.includes(id));
+  const gasOk = c.licencia_gas_estado === "aprobado";
+  const activo = c.verificacion === "verificado" && !c.suspendido;
+  const refs = c.referencias || [];
+  const refsOk = refs.filter(r => r.llamada && r.resultado === "positiva").length;
+
+  const fila = (campo, etiqueta, marcado) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;
+         border-bottom:1px solid var(--gris-luz)">
+      <span style="flex:1;font-size:14px">${esc(etiqueta)}</span>
+      <button class="etiqueta ${marcado ? "et-verde" : "et-gris"}" data-req="${campo}"
+        data-val="${marcado ? "0" : "1"}"
+        style="border:0;cursor:pointer;padding:7px 14px;font-size:11.5px">
+        ${marcado ? "&#10004; Listo" : "Pendiente"}
+      </button>
+    </div>`;
+
+  const html = `
+    ${cab(c.nombre || "Contratista", { volver: "p-cola", sub: c.telefono || "" })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      ${activo ? `
+        <div class="aviso aviso-verde"><b>&#9989; Activo</b>
+          Esta recibiendo trabajos desde el ${esc(fecha(c.activado_en))}.</div>`
+      : c.verificacion === "rechazado" ? `
+        <div class="aviso aviso-rojo"><b>Rechazado</b>
+          ${esc(c.motivo_rechazo || "Sin motivo registrado.")}</div>`
+      : c.suspendido ? `
+        <div class="aviso aviso-rojo"><b>Suspendido</b>
+          No recibe trabajos.</div>`
+      : `
+        <div class="aviso ${completo ? "aviso-verde" : "aviso-naranja"}">
+          <b>${listos} de ${TOTAL_REQUISITOS} requisitos</b>
+          ${completo ? "Ya puedes activarlo." : `No ve trabajos hasta completar los ${TOTAL_REQUISITOS}.`}
+        </div>`}
+
+      <div class="tarjeta plana">
+        <p class="seccion-tit">Datos</p>
+        <div style="font-size:13.5px;line-height:1.9">
+          <div><b>Cedula:</b> ${esc(c.cedula || "no puso")}</div>
+          <div><b>RUC:</b> ${esc(c.ruc || "no puso")}</div>
+          <div><b>Especialidades:</b> ${(c.cats || []).map(id => {
+            const x = CATEGORIAS.find(k => k.id === id);
+            return esc(x ? x.nombre : id);
+          }).join(", ") || "ninguna"}</div>
+          <div><b>Nivel:</b> ${esc(NIVELES[c.nivel]?.nombre || "Bronce")}
+            ${c.es_fundador ? " &middot; Fundador" : ""}</div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="fila-btn">
+          <button class="btn btn-linea btn-chico" id="b-llamar">&#128222; Llamar</button>
+          <button class="btn btn-linea btn-chico" id="b-wa">&#128172; WhatsApp</button>
+        </div>
+      </div>
+
+      <p class="seccion-tit" style="margin-top:18px">Requisitos para trabajar</p>
+      <div class="tarjeta">
+        ${REQUISITOS.map(([k, t]) => fila(k, t, !!c[k])).join("")}
+
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0;
+             border-bottom:1px solid var(--gris-luz)">
+          <span style="flex:1;font-size:14px">Antecedentes penales</span>
+          <button class="etiqueta ${c.antecedentes_estado === "aprobado" ? "et-verde" : "et-gris"}"
+            id="b-antec" style="border:0;cursor:pointer;padding:7px 14px;font-size:11.5px">
+            ${c.antecedentes_estado === "aprobado" ? "&#10004; Listo" : "Pendiente"}
+          </button>
+        </div>
+
+        <div style="padding:13px 0 4px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="flex:1;font-size:14px;font-weight:600">Idoneidad de la Junta Tecnica</span>
+            <span class="etiqueta ${idoneidadOk ? "et-verde" : necesitaIdoneidad ? "et-roja" : "et-gris"}">
+              ${idoneidadOk ? "&#10004; Aprobada" : necesitaIdoneidad ? "Obligatoria" : "No aplica"}</span>
+          </div>
+          <p class="det" style="margin-bottom:9px">
+            ${necesitaIdoneidad
+              ? "Uno de sus oficios la exige por ley. Sin ella puede trabajar en los que no la piden, pero NO va a ver esos trabajos."
+              : "Sus oficios no la exigen. Solo se llena si la tiene."}
+          </p>
+          <input id="i-num" type="text" placeholder="Numero del certificado"
+                 value="${esc(c.idoneidad_numero || "")}" style="margin-bottom:7px">
+          <input id="i-cat" type="text" placeholder="Categoria (ej: electricista general)"
+                 value="${esc(c.idoneidad_categoria || "")}" style="margin-bottom:7px">
+          <label for="i-vence" style="margin-top:4px">Vence</label>
+          <input id="i-vence" type="date" value="${esc(c.idoneidad_vence || "")}">
+          <div style="height:9px"></div>
+          <div class="fila-btn">
+            <button class="btn btn-suave btn-chico" id="b-ido-ok">Aprobar idoneidad</button>
+            <button class="btn btn-linea btn-chico" id="b-ido-no">Rechazar</button>
+          </div>
+        </div>
+      </div>
+
+      ${necesitaGas ? `
+      <p class="seccion-tit" style="margin-top:18px">Licencia de gas (Bomberos)</p>
+      <div class="tarjeta">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="flex:1;font-size:14px;font-weight:600">Licencia Tipo A</span>
+          <span class="etiqueta ${gasOk ? "et-verde" : "et-roja"}">
+            ${gasOk ? "&#10004; Aprobada" : "Obligatoria"}</span>
+        </div>
+        <p class="det" style="margin-bottom:9px">
+          Es un papel DISTINTO de la idoneidad y lo da otra institucion: el
+          Benemerito Cuerpo de Bomberos. Para tocar una instalacion de gas hacen
+          falta los dos. Las instalaciones siguen NFPA 54 y 58 y los Bomberos
+          hacen la prueba de hermeticidad.
+        </p>
+        <input id="i-gas-num" type="text" placeholder="Numero de la licencia"
+               value="${esc(c.licencia_gas_numero || "")}" style="margin-bottom:7px">
+        <label for="i-gas-vence" style="margin-top:4px">Vence</label>
+        <input id="i-gas-vence" type="date" value="${esc(c.licencia_gas_vence || "")}">
+        <div style="height:9px"></div>
+        <div class="fila-btn">
+          <button class="btn btn-suave btn-chico" id="b-gas-ok">Aprobar licencia</button>
+          <button class="btn btn-linea btn-chico" id="b-gas-no">Rechazar</button>
+        </div>
+      </div>` : ""}
+
+      <p class="seccion-tit" style="margin-top:18px">No hacen falta para trabajar</p>
+      <div class="tarjeta">
+        <p class="det" style="margin-bottom:9px">
+          Se anotan porque sirven, no porque se exijan. Quien tiene RUC puede facturar;
+          quien tiene poliza propia puede ir a trabajos grandes. La cobertura del dia a
+          dia la pone la poliza colectiva de MC2, no el contratista.
+        </p>
+        ${OPCIONALES.map(([k, t]) => fila(k, t, !!c[k])).join("")}
+      </div>
+
+      <p class="seccion-tit" style="margin-top:18px">
+        Referencias llamadas (${refsOk} positivas de ${refs.length})</p>
+      <div class="tarjeta">
+        ${refs.length ? refs.map(r => `
+          <div style="padding:9px 0;border-bottom:1px solid var(--gris-luz)">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="flex:1;font-size:14px">${esc(r.nombre)}</span>
+              <span class="etiqueta ${r.resultado === "positiva" ? "et-verde"
+                : r.resultado === "negativa" ? "et-roja" : "et-gris"}">
+                ${esc(r.resultado || "sin llamar")}</span>
+            </div>
+            <div class="det">${esc(r.telefono)}${r.notas ? " &middot; " + esc(r.notas) : ""}</div>
+          </div>`).join("") : `<p class="det">Todavia no has registrado ninguna llamada.</p>`}
+
+        <div style="height:12px"></div>
+        <p class="seccion-tit">Anotar una llamada</p>
+        <input id="r-nom" type="text" placeholder="Nombre de quien contesto" style="margin-bottom:7px">
+        <input id="r-tel" type="tel" placeholder="Telefono" style="margin-bottom:7px">
+        <input id="r-nota" type="text" placeholder="Que te dijo" style="margin-bottom:9px">
+        <div class="fila-btn">
+          <button class="btn btn-suave btn-chico" id="b-ref-si">&#128077; Positiva</button>
+          <button class="btn btn-linea btn-chico" id="b-ref-no">&#128078; Negativa</button>
+        </div>
+      </div>
+
+      <div style="height:20px"></div>
+      ${!activo ? `
+        <button class="btn btn-primario" id="b-activar" ${completo ? "" : "disabled"}>
+          ${completo ? "Activar contratista" : `Faltan ${7 - listos} requisitos`}
+        </button>
+        <div style="height:10px"></div>
+        <button class="btn btn-linea btn-chico" id="b-rechazar">Rechazar</button>`
+      : `
+        <button class="btn btn-linea btn-chico" id="b-suspender"
+          style="color:var(--rojo-osc)">Suspender contratista</button>`}
+      <div style="height:24px"></div>
+    </div>`;
+
+  function montar(el, { ir, recargar }) {
+    const $ = (q) => el.querySelector(q);
+    const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
+    const tel = String(c.telefono || "").replace(/\D/g, "");
+
+    const hacer = async (fn) => {
+      try { await fn(); recargar(); }
+      catch (e) { err(e.message || "No se pudo guardar."); }
+    };
+
+    if ($("#b-llamar")) $("#b-llamar").onclick = () => { location.href = `tel:+507${tel}`; };
+    if ($("#b-wa")) $("#b-wa").onclick = () =>
+      window.open(`https://wa.me/507${tel}?text=${encodeURIComponent(
+        "Hola " + (c.nombre || "") + ", te escribo de MC2 por tu registro como contratista.")}`, "_blank");
+
+    el.querySelectorAll("[data-req]").forEach(b => {
+      b.onclick = () => hacer(() =>
+        API.marcarVerificacion(c.id, b.dataset.req, b.dataset.val === "1"));
+    });
+
+    $("#b-antec").onclick = () => hacer(() => API.marcarVerificacion(
+      c.id, "antecedentes_estado",
+      c.antecedentes_estado === "aprobado" ? "pendiente" : "aprobado"));
+
+    $("#b-ido-ok").onclick = () => {
+      if (!$("#i-num").value.trim()) return err("Escribe el numero del certificado.");
+      hacer(() => API.guardarIdoneidad(c.id, {
+        numero: $("#i-num").value.trim(), categoria: $("#i-cat").value.trim(),
+        vence: $("#i-vence").value || null, estado: "aprobado"
+      }));
+    };
+    $("#b-ido-no").onclick = () => hacer(() => API.guardarIdoneidad(c.id, {
+      numero: $("#i-num").value.trim(), categoria: $("#i-cat").value.trim(),
+      vence: $("#i-vence").value || null, estado: "rechazado"
+    }));
+
+    if ($("#b-gas-ok")) $("#b-gas-ok").onclick = () => {
+      if (!$("#i-gas-num").value.trim()) return err("Escribe el numero de la licencia.");
+      hacer(() => API.guardarLicenciaGas(c.id, {
+        numero: $("#i-gas-num").value.trim(),
+        vence: $("#i-gas-vence").value || null, estado: "aprobado"
+      }));
+    };
+    if ($("#b-gas-no")) $("#b-gas-no").onclick = () => hacer(() => API.guardarLicenciaGas(c.id, {
+      numero: $("#i-gas-num").value.trim(),
+      vence: $("#i-gas-vence").value || null, estado: "rechazado"
+    }));
+
+    const anotar = (resultado) => {
+      const nombre = $("#r-nom").value.trim();
+      const telr = $("#r-tel").value.trim();
+      if (nombre.length < 2) return err("Escribe el nombre de quien contesto.");
+      hacer(() => API.registrarReferencia(c.id, {
+        nombre, telefono: telr, resultado, notas: $("#r-nota").value.trim()
+      }));
+    };
+    $("#b-ref-si").onclick = () => anotar("positiva");
+    $("#b-ref-no").onclick = () => anotar("negativa");
+
+    if ($("#b-activar")) $("#b-activar").onclick = () => {
+      if (!completo) return;
+      const b = $("#b-activar"); b.disabled = true; b.textContent = "Activando...";
+      hacer(() => API.activarContratista(c.id, "Verificado por el panel"));
+    };
+
+    if ($("#b-rechazar")) $("#b-rechazar").onclick = () => {
+      const motivo = prompt("Por que lo rechazas? Queda anotado.");
+      if (motivo) hacer(() => API.rechazarContratista(c.id, motivo));
+    };
+
+    if ($("#b-suspender")) $("#b-suspender").onclick = () => {
+      const motivo = prompt("Por que lo suspendes? Queda anotado.");
+      if (motivo) hacer(() => API.suspenderContratista(c.id, motivo));
+    };
+  }
+  return { html, montar };
+}
+
+return { vistaPanel, vistaContratistaDetalle };
+})();
+
+
+/* ===== app.js ===== */
+__M["app"] = (function(){
+// =====================================================================
+//  MC2 — MOTOR DE LA APP
+//  Decide que pantalla mostrar y guarda el estado.
+//  Hay dos mundos: el del CLIENTE y el del CONTRATISTA. El rol del
+//  usuario decide en cual entra.
+//  Leo: no necesitas tocar este archivo.
+// =====================================================================
+
+const { CONFIG } = __M["config"];
+const { API, modoDemo, cargarCatalogo } = __M["datos"];
+const { vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil } = __M["vistas"];
+const { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, vistaCobrar, vistaAgenda, vistaPerfilContratista } = __M["vistas-contratista"];
+const { vistaPanel, vistaContratistaDetalle } = __M["vistas-panel"];
+
+const raiz = document.getElementById("app");
+
+const estado = {
+  usuario: null,
+  contratista: null,
+  billetera: null,
+  ruta: "entrada",
+  params: {},
+  trabajos: [],
+  misTrabajos: [],
+  cerca: [],
+  trabajo: null,
+  cola: [],
+  zona: CONFIG.ZONAS[0]
+};
+
+const VISTAS = {
+  // cliente
+  entrada:  vistaEntrada,
+  inicio:   vistaInicio,
+  catalogo: vistaCatalogo,
+  pedir:    vistaPedir,
+  trabajo:  vistaTrabajo,
+  trabajos: vistaTrabajos,
+  perfil:   vistaPerfil,
+  // contratista
+  "c-registro": vistaRegistroContratista,
+  "c-trabajos": vistaTrabajosCerca,
+  "c-trabajo":  vistaTrabajoContratista,
+  "c-cobrar":   vistaCobrar,
+  "c-agenda":   vistaAgenda,
+  "c-perfil":   vistaPerfilContratista,
+  // panel de Leo
+  "p-cola":         vistaPanel,
+  "p-contratista":  vistaContratistaDetalle
+};
+
+const esRutaContratista = (r) => r.startsWith("c-") && r !== "c-registro";
+const esRutaPanel = (r) => r.startsWith("p-");
+const NECESITAN_TRABAJOS = ["inicio", "trabajos", "trabajo"];
+
+function pintarCargando() {
+  raiz.innerHTML = `<div class="cargando">Cargando...</div>`;
+}
+
+async function cargarDatos() {
+  const r = estado.ruta;
+
+  if (NECESITAN_TRABAJOS.includes(r)) {
+    try { estado.trabajos = await API.misTrabajos(); }
+    catch (e) { estado.trabajos = []; }
+  }
+
+  if (esRutaContratista(r)) {
+    try {
+      estado.contratista = await API.perfilContratista();
+      estado.misTrabajos = await API.misTrabajosContratista();
+      estado.billetera = await API.billetera();
+      if (r === "c-trabajos") estado.cerca = await API.trabajosCerca();
+    } catch (e) {
+      estado.contratista = estado.contratista || null;
+      estado.misTrabajos = estado.misTrabajos || [];
+      estado.billetera = estado.billetera || { disponible:0, transito:0, semana:0, trabajosSemana:0 };
+      estado.cerca = estado.cerca || [];
+    }
+  }
+
+  if (esRutaPanel(r)) {
+    try {
+      estado.cola = await API.colaVerificacion();
+      if (r === "p-contratista" && estado.params.id) {
+        estado.contratista = await API.detalleContratista(estado.params.id);
+      }
+    } catch (e) {
+      estado.cola = estado.cola || [];
+    }
+  }
+
+  if ((r === "trabajo" || r === "c-trabajo" || r === "c-cobrar") && estado.params.id) {
+    const todos = [...estado.trabajos, ...estado.misTrabajos, ...estado.cerca];
+    estado.trabajo = todos.find(t => t.id === estado.params.id)
+      || await API.trabajo(estado.params.id);
+  }
+}
+
+async function render() {
+  const fabrica = VISTAS[estado.ruta] || VISTAS.inicio;
+  await cargarDatos();
+
+  const vista = fabrica(estado);
+  const cinta = modoDemo() && !["entrada","c-registro"].includes(estado.ruta)
+    ? `<div class="cinta-demo">MODO DEMO &middot; datos de prueba en este celular</div>` : "";
+  raiz.innerHTML = cinta + vista.html;
+
+  const ayudas = {
+    ir,
+    recargar: () => render(),
+    salir: async () => {
+      await API.salir();
+      estado.usuario = null; estado.contratista = null;
+      estado.trabajos = []; estado.misTrabajos = []; estado.cerca = [];
+      ir("entrada");
+    },
+    setZona: (z) => { estado.zona = z; render(); }
+  };
+  try { vista.montar(raiz, ayudas); }
+  catch (e) { console.error("MC2: fallo al montar la pantalla", e); }
+
+  // botones genericos que solo navegan
+  raiz.querySelectorAll("[data-ir]").forEach(b => {
+    if (!b.onclick) b.onclick = () => ir(b.dataset.ir);
+  });
+
+  window.scrollTo(0, 0);
+}
+
+function ir(ruta, params = {}, usuario = null) {
+  if (usuario) estado.usuario = usuario;
+  estado.ruta = ruta;
+  estado.params = params;
+  try { history.pushState({ ruta, params }, "", "#" + ruta); } catch (e) { /* nada */ }
+  render();
+}
+
+// pantalla de inicio segun el rol
+const casa = (u) => {
+  if (u && u.rol === "contratista") return "c-trabajos";
+  if (u && u.rol === "staff_mc2") return "p-cola";
+  return "inicio";
+};
+
+window.addEventListener("popstate", (ev) => {
+  const s = ev.state;
+  if (s && s.ruta) { estado.ruta = s.ruta; estado.params = s.params || {}; render(); }
+  else if (estado.usuario) { estado.ruta = casa(estado.usuario); estado.params = {}; render(); }
+});
+
+// ---------------------------------------------------------------- arranque
+(async function arrancar() {
+  pintarCargando();
+  // Los precios se traen de Supabase antes de dibujar nada, para que
+  // nunca se le muestre al cliente un precio viejo.
+  try { await cargarCatalogo(); } catch (e) { /* seguimos con el respaldo */ }
+  try { estado.usuario = await API.sesion(); }
+  catch (e) { estado.usuario = null; }
+  estado.ruta = estado.usuario ? casa(estado.usuario) : "entrada";
+  await render();
+})();
+
+// ---------------------------------------------------------------- instalar
+let promptInstalar = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  promptInstalar = e;
+  mostrarInstalar();
+});
+
+function mostrarInstalar() {
+  if (document.querySelector(".instalar")) return;
+  try { if (sessionStorage.getItem("mc2_instalar_no")) return; } catch (e) { /* nada */ }
+  const caja = document.createElement("div");
+  caja.className = "instalar";
+  caja.innerHTML = `
+    <div class="t">Instala MC2 en tu celular para tenerla a un toque.</div>
+    <button id="i-si">Instalar</button>
+    <button class="x" id="i-no" aria-label="Cerrar">&times;</button>`;
+  document.body.appendChild(caja);
+  caja.querySelector("#i-si").onclick = async () => {
+    caja.remove();
+    if (promptInstalar) { promptInstalar.prompt(); promptInstalar = null; }
+  };
+  caja.querySelector("#i-no").onclick = () => {
+    try { sessionStorage.setItem("mc2_instalar_no", "1"); } catch (e) { /* nada */ }
+    caja.remove();
+  };
+}
+
+// ---------------------------------------------------------------- offline
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => { /* sin offline, no pasa nada */ });
+  });
+}
+
+return {};
+})();
+
+})();
+</script>
+</body>
+</html>
