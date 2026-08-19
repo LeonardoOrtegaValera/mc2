@@ -3,6 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- =====================================================================
+     CANDADO DEL NAVEGADOR (Content Security Policy)
+     Le dice al navegador con quien SI puede hablar esta pagina. Si algun
+     dia alguien lograra meter codigo raro en la app, este candado le
+     impide mandarse los datos a otro servidor: solo existen los de esta
+     lista. GitHub Pages no deja poner cabeceras, por eso va como meta.
+     Si agregas un servicio nuevo (pagos, mapas, analitica) hay que
+     anotarlo aqui, o la app dejara de hablarle. A proposito.
+     ===================================================================== -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://mtghfuiihgqgncjeisyf.supabase.co https://nominatim.openstreetmap.org; frame-src https://www.openstreetmap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<!-- Que la direccion de la app no viaje entera a servidores de terceros. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
 <title>MC2 - Mantenimiento y Construccion 2.0</title>
 <meta name="description" content="Reparaciones de plomeria, electricidad y mantenimiento en Panama. Contratistas verificados, precio cerrado y garantia de 7 dias.">
 <meta name="theme-color" content="#0C447C">
@@ -263,7 +277,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "1.7",
+  VERSION: "2.0",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -1040,6 +1054,25 @@ const API = {
     });
   },
 
+  // Cuantos precios le llegaron a cada trabajo del cliente, en UNA sola
+  // consulta. Sirve para que la lista "Mis trabajos" diga "3 precios
+  // para escoger" en vez de "B/. 0.00".
+  async conteoCotizaciones(ids = []) {
+    if (!ids.length) return {};
+    const c = await cliente();
+    const m = {};
+    if (!c) {
+      const d = leerDemo();
+      (d.cotizaciones || []).forEach(q => {
+        if (ids.includes(q.trabajoId)) m[q.trabajoId] = (m[q.trabajoId] || 0) + 1;
+      });
+      return m;
+    }
+    const { data } = await c.from("cotizaciones").select("trabajo_id").in("trabajo_id", ids);
+    (data || []).forEach(q => { m[q.trabajo_id] = (m[q.trabajo_id] || 0) + 1; });
+    return m;
+  },
+
   // Todas las que tengo mandadas, para marcarlas en la lista de trabajos
   // cerca. Devuelve { trabajoId: { precio, elegida } }.
   async misCotizaciones() {
@@ -1557,6 +1590,27 @@ const API = {
   }
 };
 
+// ---------------------------------------------------------------------
+//  LIBRETA DE FALLAS
+//
+//  Todo error que la app decida NO mostrarle al usuario se anota aqui.
+//  Sirve para que "no se cayo nada" no sea lo mismo que "todo esta
+//  bien": un try/catch que se traga un error deja la app en pie y el
+//  problema invisible. Asi la revision de pantallas los encuentra
+//  igual.
+// ---------------------------------------------------------------------
+try { window.__MC2_FALLAS = window.__MC2_FALLAS || []; } catch (e) { /* nada */ }
+
+function anotarFalla(zona, e) {
+  try {
+    window.__MC2_FALLAS.push({
+      zona, msg: String((e && e.message) || e).slice(0, 200),
+      cuando: new Date().toISOString()
+    });
+  } catch (x) { /* nada */ }
+  console.error("MC2 [" + zona + "]", e);
+}
+
 // El escapador vive en vistas.js, que se carga DESPUES de este archivo, asi
 // que aqui no existe todavia. Se define uno propio: es la misma funcion de
 // tres lineas y evita un "esc is not defined" que dejaba sin dibujar la caja
@@ -1772,7 +1826,7 @@ function traducir(msg = "") {
 // Ese error tumbaba el montar() entero y dejaba muertos el boton de
 // Disponible y todos los de Aceptar trabajo. (19 ago 2026)
 return { REGLAS, NIVELES, calcularTarifaCliente, calcularComision, porcentajeAnticipo, economia, nivelPara, faltaParaSubir, money, CATEGORIAS, SERVICIOS, serviciosDe, servicioPorId, catalogoCargado, cargarCatalogo, ESTADOS, ESTADO_TXT, URGENCIA_TXT, modoDemo, API,
-         enCotizacion, faltaPara,
+         enCotizacion, faltaPara, anotarFalla,
          pintarCajaAvisos, estadoAvisos, activarAvisos, mensajeAvisos };
 })();
 
@@ -1869,6 +1923,9 @@ function vistaEntrada() {
       <div style="height:10px"></div>
       <button class="btn btn-suave btn-chico" id="b-diag"
         style="font-size:12px;color:var(--gris-2)">Probar conexion (version ${esc(CONFIG.VERSION)})</button>
+      <div style="height:6px"></div>
+      <button class="btn btn-suave btn-chico" id="b-autotest"
+        style="font-size:12px;color:var(--gris-2)">Revisar las pantallas antes de mostrar la app</button>
       <pre id="diag" style="display:none;white-space:pre-wrap;font-size:11px;
         background:var(--gris-luz);padding:10px;border-radius:8px;margin-top:8px;
         line-height:1.5;overflow-x:auto"></pre>
@@ -1891,6 +1948,36 @@ function vistaEntrada() {
 
     // Diagnostico: prueba cada paso por separado y muestra el resultado
     // en pantalla. Sirve para saber exactamente donde se rompe.
+    // REVISAR LAS PANTALLAS ANTES DE ENSENARLE LA APP A ALGUIEN.
+    //
+    // Esto arma cada pantalla de la app con datos de mentira y comprueba
+    // que se dibuja Y que sus botones quedan conectados. Es de 5
+    // segundos y se corre en el celular de verdad, con el internet de
+    // verdad.
+    //
+    // Existe por el 19 de agosto: una funcion que no estaba exportada
+    // reventaba el codigo que enciende los botones del contratista. La
+    // pantalla se veia perfecta y no respondia a nada, sin un solo
+    // mensaje. Se descubrio con un contratista de verdad al frente.
+    // Esta prueba lo habria cazado en cinco segundos.
+    $("#b-autotest").onclick = async () => {
+      const caja = $("#diag");
+      caja.style.display = "block";
+      caja.textContent = "Revisando las pantallas...\n\n";
+      const r = await (window.MC2_revisar ? window.MC2_revisar() : Promise.resolve(null));
+      if (!r) { caja.textContent = "No se pudo revisar. Avisale a Leo."; return; }
+
+      const malas = r.filter(x => !x.ok);
+      caja.textContent =
+        `version ${CONFIG.VERSION}\n` +
+        `${r.length - malas.length} de ${r.length} pantallas estan bien\n\n` +
+        (malas.length
+          ? "PANTALLAS CON PROBLEMA:\n\n" +
+            malas.map(x => `  ${x.ruta}\n     ${x.msg}\n`).join("") +
+            "\nNO le muestres la app a nadie asi. Mandale esta pantalla a Leo."
+          : "Todo bien. Los botones de todas las pantallas responden.");
+    };
+
     $("#b-diag").onclick = async () => {
       const caja = $("#diag");
       caja.style.display = "block";
@@ -1967,6 +2054,9 @@ function vistaInicio(ctx) {
   const zona = ctx.zona || CONFIG.ZONAS[0];
   const activo = (ctx.trabajos || []).find(t =>
     ["buscando","asignado","en_camino","trabajando","listo"].includes(t.estado));
+  // Si ya le llegaron precios, eso es LA noticia de la pantalla de inicio.
+  const activoCotiz = activo && enCotizacion(activo)
+    ? ((ctx.conteoCotiz || {})[activo.id] || 0) : 0;
 
   const html = `
     <div class="cab">
@@ -1991,12 +2081,17 @@ function vistaInicio(ctx) {
 
       ${activo ? `
         <p class="seccion-tit" style="margin-top:18px">Tu trabajo en curso</p>
-        <div class="tarjeta" data-abrir="${activo.id}" style="cursor:pointer">
+        <div class="tarjeta ${activoCotiz ? "destacada" : ""}" data-abrir="${activo.id}"
+             data-cotiza="${enCotizacion(activo) ? 1 : 0}" style="cursor:pointer">
           <div class="item">
             <div>
               <p class="nom">${esc(activo.servicioNombre)}</p>
-              <p class="det">${esc(ESTADO_TXT[activo.estado] || activo.estado)}
-                ${activo.contratista ? " &middot; " + esc(activo.contratista.nombre) : ""}</p>
+              <p class="det">${activoCotiz
+                ? `<b style="color:var(--verde-osc)">${activoCotiz} precio${activoCotiz === 1 ? "" : "s"} esperando que escojas</b>`
+                : enCotizacion(activo)
+                  ? "Esperando precios de los tecnicos"
+                  : esc(ESTADO_TXT[activo.estado] || activo.estado) +
+                    (activo.contratista ? " &middot; " + esc(activo.contratista.nombre) : "")}</p>
             </div>
             <span style="font-size:20px;color:var(--gris-2)">&rsaquo;</span>
           </div>
@@ -2015,7 +2110,8 @@ function vistaInicio(ctx) {
       b.onclick = () => ir("catalogo", { cat: b.dataset.cat });
     });
     const ab = el.querySelector("[data-abrir]");
-    if (ab) ab.onclick = () => ir("trabajo", { id: ab.dataset.abrir });
+    if (ab) ab.onclick = () => ir(ab.dataset.cotiza === "1" ? "cotizaciones" : "trabajo",
+                                  { id: ab.dataset.abrir });
     el.querySelector("#b-emergencia").onclick = () => ir("catalogo", { cat:"plomeria", urgencia:"emergencia" });
     el.querySelector("#b-zona").onclick = () => {
       const i = CONFIG.ZONAS.indexOf(ctx.zona || CONFIG.ZONAS[0]);
@@ -2204,7 +2300,7 @@ function vistaPedir(ctx) {
       const lector = new FileReader();
       lector.onload = () => {
         foto = lector.result;
-        $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Foto del dano">`;
+        $("#previa").innerHTML = `<img class="foto-previa" src="${esc(foto)}" alt="Foto del dano">`;
         $("#zona-foto").style.display = "none";
         err("");
       };
@@ -2617,22 +2713,45 @@ function vistaTrabajo(ctx) {
 // ------------------------------------------------------------ 6. MIS TRABAJOS
 function vistaTrabajos(ctx) {
   const lista = ctx.trabajos || [];
+  const cuantas = ctx.conteoCotiz || {};
+
+  // UN TRABAJO A COTIZAR NO CUESTA "B/. 0.00".
+  //
+  // Antes esta lista mostraba el total, y en un trabajo esperando
+  // precios el total es cero. Quedaba "B/. 0.00 - Buscando tecnico",
+  // que es justo lo contrario de lo que pasa: ya te llegaron precios y
+  // te estan esperando. Aqui se dice cuantos hay y se entra directo a
+  // escogerlos. (19 ago 2026)
+  const tarjeta = (t) => {
+    const cotiza = enCotizacion(t);
+    const n = cotiza ? (cuantas[t.id] || 0) : 0;
+    return `
+      <div class="tarjeta ${n ? "destacada" : ""}" data-abrir="${t.id}"
+           data-cotiza="${cotiza ? 1 : 0}" style="cursor:pointer">
+        <div class="item">
+          <div style="flex:1">
+            <p class="nom">${esc(t.servicioNombre)}</p>
+            <p class="det">${esc(t.folio || "")} &middot; ${esc(fecha(t.creado))}</p>
+            <div style="margin-top:6px">
+              <span class="etiqueta ${n ? "et-verde" : etiqueta(t.estado)}">${
+                cotiza
+                  ? (n ? `${n} precio${n === 1 ? "" : "s"} para escoger`
+                       : "Esperando precios")
+                  : esc(ESTADO_TXT[t.estado] || t.estado)}</span>
+            </div>
+          </div>
+          <div class="precio" style="font-size:${cotiza ? "13px" : "17px"}">${
+            cotiza
+              ? (n ? "Ver precios &rarr;" : "&mdash;")
+              : money(t.eco?.totalCliente)}</div>
+        </div>
+      </div>`;
+  };
+
   const html = `
     ${cab("Mis trabajos")}
     <div class="cont vista">
-      ${lista.length ? lista.map(t => `
-        <div class="tarjeta" data-abrir="${t.id}" style="cursor:pointer">
-          <div class="item">
-            <div style="flex:1">
-              <p class="nom">${esc(t.servicioNombre)}</p>
-              <p class="det">${esc(t.folio || "")} &middot; ${esc(fecha(t.creado))}</p>
-              <div style="margin-top:6px">
-                <span class="etiqueta ${etiqueta(t.estado)}">${esc(ESTADO_TXT[t.estado] || t.estado)}</span>
-              </div>
-            </div>
-            <div class="precio" style="font-size:17px">${money(t.eco?.totalCliente)}</div>
-          </div>
-        </div>`).join("") : `
+      ${lista.length ? lista.map(tarjeta).join("") : `
         <div class="vacio">
           <span class="ico">&#128203;</span>
           Todavia no has pedido ningun trabajo.
@@ -2645,7 +2764,10 @@ function vistaTrabajos(ctx) {
 
   function montar(el, { ir }) {
     el.querySelectorAll("[data-abrir]").forEach(d => {
-      d.onclick = () => ir("trabajo", { id: d.dataset.abrir });
+      // Si esta esperando precios, la lista lleva DIRECTO a escogerlos.
+      // Un clic menos justo donde el cliente tiene que decidir.
+      d.onclick = () => ir(d.dataset.cotiza === "1" ? "cotizaciones" : "trabajo",
+                           { id: d.dataset.abrir });
     });
   }
   return { html, montar };
@@ -2763,7 +2885,7 @@ __M["vistas-contratista"] = (function(){
 
 const { CONFIG } = __M["config"];
 const { API, CATEGORIAS, servicioPorId, economia, money, modoDemo, ESTADO_TXT, URGENCIA_TXT, NIVELES, faltaParaSubir,
-        pintarCajaAvisos, estadoAvisos, enCotizacion, faltaPara } = __M["datos"];
+        pintarCajaAvisos, estadoAvisos, enCotizacion, faltaPara, anotarFalla } = __M["datos"];
 const { esc, cuando } = __M["vistas"];
 
 const cab = (titulo, { volver = null, sub = null } = {}) => `
@@ -3029,7 +3151,7 @@ function vistaTrabajosCerca(ctx) {
     // La caja de avisos es lo menos importante de esta pantalla, asi que va
     // envuelta y de ultima intencion: si falla, que no se lleve por delante
     // los botones, que es lo que le pasaba al contratista.
-    const avisos = () => { try { pintarCajaAvisos(el); } catch (e) { console.error("MC2: avisos", e); } };
+    const avisos = () => { try { pintarCajaAvisos(el); } catch (e) { anotarFalla("caja de avisos", e); } };
 
     el.querySelectorAll("[data-abrir]").forEach(d => {
       d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
@@ -3124,7 +3246,7 @@ function vistaTrabajoContratista(ctx) {
 
       ${t.foto ? `
         <p class="seccion-tit">Foto del dano</p>
-        <img class="foto-previa" src="${t.foto}" alt="Foto del dano"
+        <img class="foto-previa" src="${esc(t.foto)}" alt="Foto del dano"
              style="margin-bottom:12px">` : ""}
 
       ${porCotizar ? `
@@ -3354,7 +3476,7 @@ function vistaCobrar(ctx) {
 
       ${t.foto ? `
         <p class="seccion-tit">Antes</p>
-        <img class="foto-previa" src="${t.foto}" alt="Antes" style="margin-bottom:14px">` : ""}
+        <img class="foto-previa" src="${esc(t.foto)}" alt="Antes" style="margin-bottom:14px">` : ""}
 
       <p class="seccion-tit">Despues</p>
       <div class="foto-zona" id="zona-foto">
@@ -3393,7 +3515,7 @@ function vistaCobrar(ctx) {
     const err = (m) => { $("#err").innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : ""; };
     let foto = t.fotoDespues || null;
     if (foto) {
-      $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Despues">`;
+      $("#previa").innerHTML = `<img class="foto-previa" src="${esc(foto)}" alt="Despues">`;
       $("#zona-foto").style.display = "none";
       $("#b-finalizar").disabled = false;
     }
@@ -3406,7 +3528,7 @@ function vistaCobrar(ctx) {
       const lector = new FileReader();
       lector.onload = () => {
         foto = lector.result;
-        $("#previa").innerHTML = `<img class="foto-previa" src="${foto}" alt="Despues">`;
+        $("#previa").innerHTML = `<img class="foto-previa" src="${esc(foto)}" alt="Despues">`;
         $("#zona-foto").style.display = "none";
         $("#b-finalizar").disabled = false;
         err("");
@@ -4034,7 +4156,7 @@ __M["app"] = (function(){
 // =====================================================================
 
 const { CONFIG } = __M["config"];
-const { API, modoDemo, cargarCatalogo, enCotizacion } = __M["datos"];
+const { API, modoDemo, cargarCatalogo, enCotizacion, anotarFalla } = __M["datos"];
 const { vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil,
         vistaCotizaciones } = __M["vistas"];
 const { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, vistaCobrar, vistaAgenda, vistaPerfilContratista } = __M["vistas-contratista"];
@@ -4092,6 +4214,11 @@ async function cargarDatos() {
   if (NECESITAN_TRABAJOS.includes(r)) {
     try { estado.trabajos = await API.misTrabajos(); }
     catch (e) { estado.trabajos = []; }
+
+    // Cuantos precios lleva cada uno de los que estan esperando.
+    const esperando = estado.trabajos.filter(enCotizacion).map(t => t.id);
+    try { estado.conteoCotiz = await API.conteoCotizaciones(esperando); }
+    catch (e) { estado.conteoCotiz = {}; }
   }
 
   if (esRutaContratista(r)) {
@@ -4173,8 +4300,17 @@ async function render() {
     },
     setZona: (z) => { estado.zona = z; render(); }
   };
+  // SI MONTAR FALLA, QUE SE VEA.
+  //
+  // Antes esto era un console.error y ya. La pantalla quedaba dibujada
+  // pero con TODOS los botones muertos, y ni el contratista ni Leo se
+  // enteraban: parecia que el celular estaba lento. Un error callado en
+  // la mano de un cliente cuesta mas que una pantalla fea.
   try { vista.montar(raiz, ayudas); }
-  catch (e) { console.error("MC2: fallo al montar la pantalla", e); }
+  catch (e) {
+    console.error("MC2: fallo al montar la pantalla", e);
+    avisarFalla(e, estado.ruta);
+  }
 
   // botones genericos que solo navegan
   raiz.querySelectorAll("[data-ir]").forEach(b => {
@@ -4183,6 +4319,119 @@ async function render() {
 
   window.scrollTo(0, 0);
 }
+
+// El aviso rojo de arriba. Dice que fallo, en que pantalla, y deja
+// recargar sin cerrar sesion.
+function avisarFalla(e, ruta) {
+  try {
+    const previo = document.getElementById("mc2-falla");
+    if (previo) previo.remove();
+    const d = document.createElement("div");
+    d.id = "mc2-falla";
+    d.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;background:#E24B4A;" +
+      "color:#fff;padding:10px 14px;font-size:13px;line-height:1.4";
+    d.innerHTML =
+      `<b>Esta pantalla no cargo bien.</b><br>` +
+      `Algunos botones pueden no responder. Toca aqui para reintentar.` +
+      `<div style="font-size:11px;opacity:.85;margin-top:4px">${ruta}: ${
+        String(e && e.message || e).slice(0, 120)}</div>`;
+    d.onclick = () => location.reload();
+    document.body.appendChild(d);
+  } catch (x) { /* si ni esto se puede, ya no hay nada que hacer */ }
+}
+
+// Cualquier error suelto de la app tambien se ve.
+window.addEventListener("error", (ev) => {
+  if (ev && ev.message && /Script error/i.test(ev.message)) return;  // ruido de otros dominios
+  avisarFalla(ev.error || { message: ev.message }, estado.ruta);
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  avisarFalla(ev.reason || { message: "promesa sin atender" }, estado.ruta);
+});
+
+// ---------------------------------------------------------------------
+//  REVISION DE PANTALLAS  (el boton de la pantalla de entrada)
+//
+//  Arma CADA pantalla con datos de mentira y la monta de verdad en un
+//  contenedor escondido. Si el codigo que enciende los botones revienta,
+//  aqui revienta tambien, y se ve el nombre de la pantalla y el error.
+//
+//  Corre en el celular del contratista, con su navegador y su internet.
+//  Eso es lo que ninguna prueba mia en otra maquina puede garantizar.
+// ---------------------------------------------------------------------
+function estadoDePrueba() {
+  const hoy = new Date().toISOString();
+  const enDosHoras = new Date(Date.now() + 7200000).toISOString();
+  const trabajo = {
+    id:"prueba-1", folio:"MC2-PRUEBA", servicioId:null, servicioNombre:"Trabajo de prueba",
+    categoria:"plomeria", tipoPropiedad:"ph", urgencia:"normal",
+    direccion:"Calle de prueba", detalle:"Piso 1", descripcion:"Prueba interna",
+    estado:"buscando", contratistaId:null, contratista:null,
+    modalidad:"cotizacion", cotizaHasta:enDosHoras,
+    eco:{ base:50, tarifa:5, totalCliente:55, comision:4, comisionPct:8,
+          netoContratista:46, anticipo:0, saldo:55 },
+    pagos:[], creado:hoy, calificacion:null
+  };
+  const cotizacion = {
+    id:"cot-1", contratistaId:"c1", nombre:"Tecnico de prueba", rating:4.8,
+    trabajos:20, nivel:"oro", verificado:true, precio:50, tarifa:5, total:55,
+    llegada:enDosHoras, mensaje:"Prueba", elegida:false, creada:hoy
+  };
+  return {
+    ruta:"inicio", params:{ id:"prueba-1", servicioId:null },
+    usuario:{ id:"u", nombre:"Usuario Prueba", telefono:"60000000", rol:"cliente" },
+    contratista:{ id:"u", nombre:"Tecnico Prueba", telefono:"60000000", cedula:"8-1-1",
+                  cats:["plomeria"], rating:0, trabajos:0, nivel:"oro", esFundador:true,
+                  disponible:true, saldo:0, transito:0,
+                  ver:{ cedula:true, ruc:false, seguro:false, referencias:false, prueba:false } },
+    trabajos:[trabajo], misTrabajos:[trabajo], cerca:[trabajo], trabajo,
+    cotizaciones:[cotizacion], miCotizacion:null, misCotiz:{}, conteoCotiz:{ "prueba-1":1 },
+    rango:{ min:30, max:80, muestras:0 },
+    billetera:{ disponible:0, transito:0, semana:0, trabajosSemana:0 },
+    cola:[], retiros:[], zona:CONFIG.ZONAS[0]
+  };
+}
+
+window.MC2_revisar = async function () {
+  const res = [];
+  const caja = document.createElement("div");
+  caja.style.cssText = "position:absolute;left:-99999px;top:0;width:390px";
+  document.body.appendChild(caja);
+
+  const nada = () => {};
+  const ayudas = { ir:nada, recargar:nada, salir:async () => {}, setZona:nada };
+
+  for (const ruta of Object.keys(VISTAS)) {
+    const est = estadoDePrueba();
+    est.ruta = ruta;
+    try { window.__MC2_FALLAS.length = 0; } catch (e) { /* nada */ }
+    try {
+      const v = VISTAS[ruta](est);
+      caja.innerHTML = v.html;                 // ¿se dibuja?
+      v.montar(caja, ayudas);                  // ¿los botones quedan conectados?
+      // Y que la pantalla no haya quedado en blanco.
+      if (!caja.textContent.trim()) throw new Error("la pantalla queda en blanco");
+
+      // Lo que la pantalla se TRAGO sin decir nada tambien cuenta como
+      // problema. Si no, un try/catch bien intencionado esconde el bug
+      // justo de la prueba que existe para encontrarlo. Me paso al
+      // escribir esta misma revision: la primera version daba 16 de 16
+      // con el error de esta manana metido a proposito.
+      const calladas = (window.__MC2_FALLAS || []).slice();
+      if (calladas.length) {
+        res.push({ ruta, ok:false,
+                   msg:calladas.map(f => `${f.zona}: ${f.msg}`).join(" | ").slice(0, 200) });
+      } else {
+        res.push({ ruta, ok:true });
+      }
+    } catch (e) {
+      res.push({ ruta, ok:false, msg:String(e && e.message || e).slice(0, 200) });
+    }
+  }
+
+  caja.remove();
+  return res;
+};
 
 function ir(ruta, params = {}, usuario = null) {
   if (usuario) estado.usuario = usuario;
