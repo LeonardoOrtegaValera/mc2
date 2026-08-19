@@ -250,9 +250,20 @@ const CONFIG = {
   COBRO: "al_final",
 
 
+  // ---- CUANTO TIEMPO SE RECIBEN COTIZACIONES ----
+  //
+  // El cliente publica el trabajo y los contratistas mandan su precio.
+  // Esto es cuantas HORAS se deja abierta esa ventana.
+  //
+  // Ojo: quien manda de verdad es el parametro 'cotizacion_horas' de la
+  // base de datos. Este numero es el que se usa para pintar la pantalla
+  // y para el modo demo. Si cambias uno, cambia el otro.
+  HORAS_COTIZACION: 2,
+
+
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "1.5",
+  VERSION: "1.7",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -480,14 +491,17 @@ function pendientesSemilla() {
       tipoPropiedad:"ph", urgencia:"emergencia", direccion:"PH Vista Marina, Punta Pacifica",
       detalle:"Torre B, piso 9, apto 902", descripcion:"El agua sale por debajo del gabinete.",
       distancia:2.1, estado:"buscando", creado:hace(6) },
+    // Estos dos van por cotizacion: el cliente espera que le manden precio.
     { id:"p2", folio:"MC2-000102", servicioId:"s2", categoria:"plomeria",
       tipoPropiedad:"residencial", urgencia:"urgente", direccion:"Costa del Este, Ave. Centenario",
       detalle:"Casa 14", descripcion:"La llave del lavamanos gotea.",
-      distancia:3.4, estado:"buscando", creado:hace(22) },
+      distancia:3.4, estado:"buscando", creado:hace(22),
+      modalidad:"cotizacion", cotizaHasta:new Date(ahora + 95 * 60000).toISOString() },
     { id:"p3", folio:"MC2-000103", servicioId:"s4", categoria:"plomeria",
       tipoPropiedad:"ph", urgencia:"normal", direccion:"PH Los Cedros, San Francisco",
       detalle:"Torre A, piso 3", descripcion:"El tanque no llena bien.",
-      distancia:5.8, estado:"buscando", creado:hace(70) },
+      distancia:5.8, estado:"buscando", creado:hace(70),
+      modalidad:"cotizacion", cotizaHasta:new Date(ahora + 40 * 60000).toISOString() },
     { id:"p4", folio:"MC2-000104", servicioId:"s5", categoria:"electricidad",
       tipoPropiedad:"comercial", urgencia:"urgente", direccion:"Local 12, Obarrio",
       detalle:"Planta baja", descripcion:"Dos tomacorrientes sin corriente.",
@@ -496,7 +510,8 @@ function pendientesSemilla() {
 }
 
 function nuevoAlmacen() {
-  return { usuario:null, contratista:null, trabajos:[], pendientes:pendientesSemilla(), retiros:[] };
+  return { usuario:null, contratista:null, trabajos:[], pendientes:pendientesSemilla(),
+           retiros:[], cotizaciones:[] };
 }
 
 // Si el navegador bloquea el almacenamiento (pasa al abrir el archivo con
@@ -511,6 +526,7 @@ function leerDemo() {
       const d = JSON.parse(raw);
       if (!d.pendientes) d.pendientes = pendientesSemilla();
       if (!d.retiros) d.retiros = [];
+      if (!d.cotizaciones) d.cotizaciones = [];
       return d;
     }
     if (memoria) return memoria;
@@ -531,6 +547,38 @@ function contratistaPara(cat) {
   const aptos = CONTRATISTAS_DEMO.filter(c => c.cats.includes(cat));
   const lista = aptos.length ? aptos : CONTRATISTAS_DEMO;
   return lista.slice().sort((a,b) => b.rating - a.rating)[0];
+}
+
+// En modo demo no hay contratistas de verdad mandando precios, asi que
+// se inventan tres para que se pueda ver la pantalla de comparar. Los
+// precios salen del rango del catalogo, no de la nada: uno por debajo,
+// uno en el medio y uno por arriba, que es como llegan en la vida real.
+function sembrarCotizacionesDemo(d, trabajo) {
+  const serv = servicioPorId(trabajo.servicioId);
+  const centro = serv?.precio || (serv?.rango ? (serv.rango[0] + serv.rango[1]) / 2 : 60);
+  const aptos = CONTRATISTAS_DEMO.filter(c => c.cats.includes(trabajo.categoria));
+  const resto = CONTRATISTAS_DEMO.filter(c => !aptos.includes(c));
+  const lista = [...aptos, ...resto].slice(0, 3);   // siempre tres, para que se vea la comparacion
+  const factores = [0.85, 1.0, 1.18];
+  const horas = [3, 5, 26];
+
+  d.cotizaciones = d.cotizaciones || [];
+  lista.forEach((c, i) => {
+    const precio = Math.max(15, Math.round(centro * factores[i % 3]));
+    const eco = economia(precio, { exento:!!serv?.exento, nivel:c.nivel });
+    d.cotizaciones.push({
+      id: idNuevo(), trabajoId: trabajo.id, contratistaId: c.id,
+      nombre: c.nombre, rating: c.rating, trabajos: c.trabajos, nivel: c.nivel,
+      verificado: true, precio, tarifa: eco.tarifa, total: eco.totalCliente,
+      llegada: new Date(Date.now() + horas[i % 3] * 3600000).toISOString(),
+      mensaje: [
+        "Puedo pasar hoy mismo. El precio incluye materiales.",
+        "Llevo repuesto original. Si es otra cosa te aviso antes de tocar nada.",
+        "Manana temprano. Trabajo con garantia escrita."
+      ][i % 3],
+      elegida: false, creada: new Date().toISOString()
+    });
+  });
 }
 
 // =====================================================================
@@ -856,6 +904,10 @@ const API = {
     const eco = economia(base, { exento: !!serv?.exento, nivel:"oro" });
     const c = await cliente();
 
+    // La emergencia nunca va a cotizacion: al que se le esta inundando la
+    // casa no le sirve comparar tres precios, le sirve un tecnico ya.
+    const porCotizar = t.urgencia !== "emergencia";
+
     if (!c) {
       const d = leerDemo();
       const asignado = contratistaPara(t.categoria);
@@ -868,26 +920,185 @@ const API = {
         direccion: t.direccion, detalle: t.detalle || "", descripcion: t.descripcion || "",
         lat: t.lat ?? null, lng: t.lng ?? null,
         foto: t.foto || null, fotoDespues: null,
-        estado: "asignado", contratista: asignado, contratistaId: asignado.id,
+        modalidad: porCotizar ? "cotizacion" : "precio_fijo",
+        cotizaHasta: porCotizar
+          ? new Date(Date.now() + CONFIG.HORAS_COTIZACION * 3600000).toISOString() : null,
+        estado: porCotizar ? "buscando" : "asignado",
+        contratista: porCotizar ? null : asignado,
+        contratistaId: porCotizar ? null : asignado.id,
         eco, pagos: [], creado: new Date().toISOString(), calificacion: null
       };
       d.trabajos.unshift(nuevo);
+      if (porCotizar) sembrarCotizacionesDemo(d, nuevo);
       guardarDemo(d);
       return nuevo;
     }
 
     const { data, error } = await c.from("trabajos").insert({
       cliente_id: (await c.auth.getUser()).data.user?.id,
-      servicio_id: t.servicioId, categoria_id: t.categoria, modalidad: "precio_fijo",
+      servicio_id: t.servicioId, categoria_id: t.categoria,
+      modalidad: porCotizar ? "cotizacion" : "precio_fijo",
       estado: "buscando", tipo_propiedad: t.tipoPropiedad, urgencia: t.urgencia,
       direccion: t.direccion, detalle_ubicacion: t.detalle || null,
       descripcion: t.descripcion || null,
       lat: t.lat ?? null, lng: t.lng ?? null,
-      monto_base: base,
-      tarifa_cliente: eco.tarifa, total_cliente: eco.totalCliente
+      monto_base: porCotizar ? 0 : base,
+      tarifa_cliente: porCotizar ? 0 : eco.tarifa,
+      total_cliente: porCotizar ? 0 : eco.totalCliente
     }).select().single();
     if (error) throw new Error(traducir(error.message));
+
+    // Abrir la ventana de cotizaciones es cosa de la base: ella pone la
+    // hora de cierre y ella comprueba que no sea una emergencia.
+    if (porCotizar) {
+      try {
+        const hasta = await pedirFuncion(c, "publicar_para_cotizar", { p_trabajo_id: data.id });
+        data.cotiza_hasta = hasta;
+      } catch (e) {
+        // Si no se pudo publicar, el trabajo igual existe y sale por el
+        // camino de siempre. Mejor eso que dejarlo en el limbo.
+        console.error("MC2: no se pudo abrir la cotizacion", e);
+      }
+    }
     return normalizar(data);
+  },
+
+  // ============================ cotizaciones ============================
+  //
+  //  El precio lo pone el que hace el trabajo. El cliente publica, varios
+  //  mandan su precio y el cliente escoge. Nadie ve el precio del otro:
+  //  eso no lo decide la pantalla, lo decide la base de datos.
+  //
+  //  La emergencia NO pasa por aqui: se sigue asignando al mas cercano.
+
+  async cotizacionesDe(trabajoId) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      return (d.cotizaciones || []).filter(q => q.trabajoId === trabajoId)
+        .sort((a, b) => a.precio - b.precio);
+    }
+    const filas = await pedirFuncion(c, "cotizaciones_de", { p_trabajo_id: trabajoId });
+    return (filas || []).map(q => ({
+      id:q.id, contratistaId:q.contratista_id, nombre:q.nombre,
+      rating:Number(q.rating) || 0, trabajos:q.trabajos || 0, nivel:q.nivel,
+      verificado:!!q.verificado, precio:Number(q.precio),
+      tarifa:Number(q.tarifa), total:Number(q.total),
+      llegada:q.llegada, mensaje:q.mensaje || "", elegida:!!q.elegida, creada:q.creada
+    }));
+  },
+
+  async elegirCotizacion(cotizacionId) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const q = (d.cotizaciones || []).find(x => x.id === cotizacionId);
+      if (!q) throw new Error("Esa cotizacion ya no esta.");
+      const t = d.trabajos.find(x => x.id === q.trabajoId);
+      if (!t) throw new Error("Ese trabajo ya no esta.");
+      const serv = servicioPorId(t.servicioId);
+      t.contratistaId = q.contratistaId;
+      t.contratista = { id:q.contratistaId, nombre:q.nombre, rating:q.rating,
+                        trabajos:q.trabajos, nivel:q.nivel };
+      t.estado = "asignado";
+      t.eco = economia(q.precio, { exento:!!serv?.exento, nivel:q.nivel || "oro" });
+      t.llegadaEstimada = q.llegada;
+      (d.cotizaciones || []).forEach(x => {
+        if (x.trabajoId === q.trabajoId) x.elegida = (x.id === q.id);
+      });
+      guardarDemo(d);
+      return t.id;
+    }
+    return await pedirFuncion(c, "elegir_cotizacion", { p_cotizacion_id: cotizacionId });
+  },
+
+  // Lo que manda el contratista.
+  async cotizar(trabajoId, precio, llegadaISO, mensaje) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      d.cotizaciones = d.cotizaciones || [];
+      const yo = d.contratista;
+      if (!yo) throw new Error("Entra como contratista para cotizar.");
+      const previa = d.cotizaciones.find(q => q.trabajoId === trabajoId && q.contratistaId === yo.id);
+      const eco = economia(precio, { nivel: yo.nivel });
+      const fila = {
+        id: previa?.id || idNuevo(), trabajoId, contratistaId: yo.id,
+        nombre: yo.nombre, rating: yo.rating || 0, trabajos: yo.trabajos || 0,
+        nivel: yo.nivel, verificado: true,
+        precio: r2(precio), tarifa: eco.tarifa, total: eco.totalCliente,
+        llegada: llegadaISO, mensaje: mensaje || "", elegida: false,
+        creada: new Date().toISOString()
+      };
+      if (previa) Object.assign(previa, fila); else d.cotizaciones.push(fila);
+      guardarDemo(d);
+      return fila.id;
+    }
+    return await pedirFuncion(c, "cotizar", {
+      p_trabajo_id: trabajoId, p_precio: precio,
+      p_llegada: llegadaISO, p_mensaje: mensaje || null
+    });
+  },
+
+  // Todas las que tengo mandadas, para marcarlas en la lista de trabajos
+  // cerca. Devuelve { trabajoId: { precio, elegida } }.
+  async misCotizaciones() {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const yo = d.contratista;
+      const m = {};
+      (d.cotizaciones || []).filter(q => q.contratistaId === yo?.id)
+        .forEach(q => { m[q.trabajoId] = { precio:q.precio, elegida:q.elegida }; });
+      return m;
+    }
+    const { data: u } = await c.auth.getUser();
+    if (!u?.user) return {};
+    const { data } = await c.from("cotizaciones")
+      .select("trabajo_id,precio,elegida").eq("contratista_id", u.user.id);
+    const m = {};
+    (data || []).forEach(q => {
+      m[q.trabajo_id] = { precio:Number(q.precio), elegida:!!q.elegida };
+    });
+    return m;
+  },
+
+  // La cotizacion que YA mando este contratista para un trabajo (o null).
+  async miCotizacion(trabajoId) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      const yo = d.contratista;
+      return (d.cotizaciones || []).find(q => q.trabajoId === trabajoId
+              && q.contratistaId === yo?.id) || null;
+    }
+    const { data: u } = await c.auth.getUser();
+    if (!u?.user) return null;
+    const { data } = await c.from("cotizaciones").select("*")
+      .eq("trabajo_id", trabajoId).eq("contratista_id", u.user.id);
+    const q = (data || [])[0];
+    return q ? { id:q.id, precio:Number(q.precio), llegada:q.llegada,
+                 mensaje:q.mensaje || "", elegida:!!q.elegida } : null;
+  },
+
+  // Cuanto suele costar esto. Se le ensena al cliente mientras espera,
+  // para que una cotizacion disparatada se le note.
+  async rangoReferencia(categoria, servicioId) {
+    const c = await cliente();
+    const serv = servicioPorId(servicioId);
+    const caida = serv?.rango
+      ? { min: serv.rango[0], max: serv.rango[1], muestras: 0 }
+      : serv?.precio
+        ? { min: Math.round(serv.precio * 0.7), max: Math.round(serv.precio * 1.3), muestras: 0 }
+        : null;
+    if (!c) return caida;
+    try {
+      const r = await pedirFuncion(c, "rango_referencia",
+        { p_categoria: categoria, p_servicio: servicioId || null });
+      const f = (r || [])[0];
+      if (!f || (!Number(f.minimo) && !Number(f.maximo))) return caida;
+      return { min: Number(f.minimo), max: Number(f.maximo), muestras: Number(f.muestras) || 0 };
+    } catch (e) { return caida; }
   },
 
   async misTrabajos() {
@@ -1015,8 +1226,16 @@ const API = {
       return !!v;
     }
     const { data: u } = await c.auth.getUser();
-    await c.from("contratistas").update({ disponible: !!v }).eq("id", u.user.id);
-    return !!v;
+    if (!u?.user) throw new Error("Se cerro tu sesion. Vuelve a entrar.");
+    // Pedimos que nos devuelva la fila: si las reglas de la base no dejan
+    // escribir, PostgREST contesta 204 sin tocar nada y el boton se quedaba
+    // callado. Con return=representation se nota.
+    const { data, error } = await c.from("contratistas")
+      .update({ disponible: !!v }).eq("id", u.user.id).select("disponible");
+    if (error) throw new Error(error.message);
+    const filas = Array.isArray(data) ? data : (data ? [data] : []);
+    if (!filas.length) throw new Error("No se pudo guardar tu disponibilidad. Avisale a Leo.");
+    return !!filas[0].disponible;
   },
 
   // trabajos abiertos que le sirven a este contratista
@@ -1338,6 +1557,13 @@ const API = {
   }
 };
 
+// El escapador vive en vistas.js, que se carga DESPUES de este archivo, asi
+// que aqui no existe todavia. Se define uno propio: es la misma funcion de
+// tres lineas y evita un "esc is not defined" que dejaba sin dibujar la caja
+// de avisos (y con ella, el permiso de notificaciones). (19 ago 2026)
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+
 // Dibuja la caja de avisos arriba de la lista de trabajos.
 // Si ya estan activos no muestra nada: no hay que estorbar con algo
 // que el usuario ya resolvio.
@@ -1504,8 +1730,25 @@ function normalizar(f) {
     lat:f.lat ?? null, lng:f.lng ?? null,
     distancia:null, foto:null, fotoDespues:null,
     eco: economia(f.monto_base, { exento:!!serv?.exento, nivel:"oro" }),
-    creado:f.creado, calificacion:null
+    creado:f.creado, calificacion:null,
+    modalidad: f.modalidad || "precio_fijo",
+    cotizaHasta: f.cotiza_hasta || null
   };
+}
+
+// ¿Este trabajo esta esperando que le manden precios?
+const enCotizacion = (t) =>
+  !!t && t.modalidad === "cotizacion" && t.estado === "buscando";
+
+// Cuanto le queda a la ventana, en texto corto para la pantalla.
+function faltaPara(iso) {
+  if (!iso) return "";
+  const ms = new Date(iso) - new Date();
+  if (ms <= 0) return "cerrada";
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  return `${h} h ${min % 60} min`;
 }
 
 function traducir(msg = "") {
@@ -1524,7 +1767,13 @@ function traducir(msg = "") {
   return "Algo fallo: " + String(msg);
 }
 
-return { REGLAS, NIVELES, calcularTarifaCliente, calcularComision, porcentajeAnticipo, economia, nivelPara, faltaParaSubir, money, CATEGORIAS, SERVICIOS, serviciosDe, servicioPorId, catalogoCargado, cargarCatalogo, ESTADOS, ESTADO_TXT, URGENCIA_TXT, modoDemo, API };
+// Los avisos viven en este modulo. Si no se exportan, la pantalla del
+// contratista los llama y revienta con "pintarCajaAvisos is not defined".
+// Ese error tumbaba el montar() entero y dejaba muertos el boton de
+// Disponible y todos los de Aceptar trabajo. (19 ago 2026)
+return { REGLAS, NIVELES, calcularTarifaCliente, calcularComision, porcentajeAnticipo, economia, nivelPara, faltaParaSubir, money, CATEGORIAS, SERVICIOS, serviciosDe, servicioPorId, catalogoCargado, cargarCatalogo, ESTADOS, ESTADO_TXT, URGENCIA_TXT, modoDemo, API,
+         enCotizacion, faltaPara,
+         pintarCajaAvisos, estadoAvisos, activarAvisos, mensajeAvisos };
 })();
 
 
@@ -1537,7 +1786,8 @@ __M["vistas"] = (function(){
 // =====================================================================
 
 const { CONFIG } = __M["config"];
-const { API, CATEGORIAS, serviciosDe, servicioPorId, economia, money, ESTADOS, ESTADO_TXT, modoDemo } = __M["datos"];
+const { API, CATEGORIAS, serviciosDe, servicioPorId, economia, money, ESTADOS, ESTADO_TXT, modoDemo,
+        enCotizacion, faltaPara } = __M["datos"];
 
 // escapa texto para que nadie pueda inyectar HTML
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
@@ -1879,29 +2129,10 @@ function vistaPedir(ctx) {
       <label for="f-desc">Cuentanos mas (opcional)</label>
       <textarea id="f-desc" placeholder="El agua sale por debajo del gabinete desde ayer"></textarea>
 
-      ${esFijo ? `
-        <div class="dinero">
-          <div class="l"><span>${esc(s.nombre)}</span><span>${money(eco.base)}</span></div>
-          <div class="l"><span>Garantia MC2 de 7 dias</span><span>${eco.tarifa ? money(eco.tarifa) : "Incluida"}</span></div>
-          <div class="l total"><span>Total</span><span>${money(eco.totalCliente)}</span></div>
-          <div class="l" style="font-size:12px;padding-top:8px">
-            <span>${eco.anticipo <= 0
-              ? "No pagas nada ahora. Pagas cuando el trabajo este listo."
-              : eco.saldo <= 0
-                ? `Pagas ${money(eco.anticipo)} al confirmar. MC2 te lo retiene hasta que apruebes.`
-                : `Pagas hoy ${money(eco.anticipo)} &middot; al terminar ${money(eco.saldo)}`}</span></div>
-        </div>` : `
-        <div class="aviso aviso-azul" style="margin-top:14px">
-          <b>Trabajos parecidos: ${CONFIG.MONEDA} ${s.rango[0]} - ${s.rango[1]}</b>
-          Un tecnico revisa tu foto y te manda el precio exacto.
-        </div>`}
+      <div id="caja-precio"></div>
 
-      <button class="btn btn-primario" id="b-pedir">
-        ${esFijo ? "Pedir tecnico ahora" : "Pedir cotizacion"}
-      </button>
-      <p class="ayuda" style="text-align:center">
-        ${esFijo ? "Te asignamos al tecnico mejor calificado disponible." : "Recibes respuesta en menos de 30 minutos."}
-      </p>
+      <button class="btn btn-primario" id="b-pedir">Pedir precios</button>
+      <p class="ayuda" style="text-align:center" id="txt-pedir"></p>
     </div>`;
 
   function montar(el, { ir }) {
@@ -1989,28 +2220,213 @@ function vistaPedir(ctx) {
         };
       });
     };
+    // ---- El precio se pinta segun la urgencia ----
+    //
+    // Normal y urgente van a cotizacion: el cliente ve un RANGO de
+    // referencia, no un precio inventado, y el precio de verdad se lo
+    // ponen los contratistas.
+    //
+    // Emergencia sigue con precio cerrado, porque ahi lo que importa es
+    // que alguien salga ya.
+    const rango = s.rango
+      ? s.rango
+      : (s.precio ? [Math.round(s.precio * 0.7), Math.round(s.precio * 1.3)] : null);
+
+    function pintarPrecio() {
+      const caja = $("#caja-precio");
+      const esEmergencia = urg === "emergencia";
+
+      if (esEmergencia && esFijo) {
+        caja.innerHTML = `
+          <div class="dinero">
+            <div class="l"><span>${esc(s.nombre)}</span><span>${money(eco.base)}</span></div>
+            <div class="l"><span>Garantia MC2 de 7 dias</span><span>${eco.tarifa ? money(eco.tarifa) : "Incluida"}</span></div>
+            <div class="l total"><span>Total</span><span>${money(eco.totalCliente)}</span></div>
+            <div class="l" style="font-size:12px;padding-top:8px">
+              <span>${eco.anticipo <= 0
+                ? "No pagas nada ahora. Pagas cuando el trabajo este listo."
+                : eco.saldo <= 0
+                  ? `Pagas ${money(eco.anticipo)} al confirmar. MC2 te lo retiene hasta que apruebes.`
+                  : `Pagas hoy ${money(eco.anticipo)} &middot; al terminar ${money(eco.saldo)}`}</span></div>
+          </div>`;
+        $("#b-pedir").textContent = "Pedir tecnico ahora";
+        $("#txt-pedir").textContent = "Emergencia: te mandamos al tecnico mas cercano, sin esperar precios.";
+        return;
+      }
+
+      caja.innerHTML = `
+        <div class="aviso aviso-azul" style="margin-top:14px">
+          <b>&#128176; Los tecnicos te mandan su precio</b>
+          ${rango ? `Trabajos parecidos andan entre ${CONFIG.MONEDA} ${rango[0]} y
+                     ${CONFIG.MONEDA} ${rango[1]}. Es solo una referencia:
+                     el precio te lo pone el tecnico despues de ver tu foto.`
+                  : "Cada tecnico te manda su precio despues de ver tu foto."}
+        </div>
+        <div class="aviso" style="margin-top:10px;background:var(--gris-luz)">
+          <b>&#9201; Tienes ${CONFIG.HORAS_COTIZACION} horas para comparar</b>
+          Te van llegando los precios y tu escoges. Ves la calificacion de
+          cada uno y a que hora puede llegar. No pagas nada por pedirlos.
+        </div>`;
+      $("#b-pedir").textContent = "Pedir precios a los tecnicos";
+      $("#txt-pedir").textContent = "Escoges tu. Si ninguno te convence, no pasa nada.";
+    }
+
     grupo("#ops-tipo", v => tipo = v);
-    grupo("#ops-urg",  v => urg = v);
+    grupo("#ops-urg",  v => { urg = v; pintarPrecio(); });
+    pintarPrecio();
 
     $("#b-pedir").onclick = async () => {
       const direccion = $("#f-dir").value.trim();
       if (direccion.length < 4) return err("Escribe la direccion.");
       const b = $("#b-pedir");
-      b.disabled = true; b.textContent = "Buscando tecnico...";
+      const textoBoton = b.textContent;
+      const porCotizar = urg !== "emergencia";
+      b.disabled = true;
+      b.textContent = porCotizar ? "Avisando a los tecnicos..." : "Buscando tecnico...";
       try {
         const t = await API.crearTrabajo({
           servicioId: s.id, categoria: s.cat, tipoPropiedad: tipo, urgencia: urg,
           direccion, detalle: $("#f-det").value.trim(),
           descripcion: $("#f-desc").value.trim(), foto, lat, lng
         });
-        ir("trabajo", { id: t.id });
+        ir(enCotizacion(t) ? "cotizaciones" : "trabajo", { id: t.id });
       } catch (e) {
         err(e.message || "No se pudo crear el pedido.");
-        b.disabled = false; b.textContent = esFijo ? "Pedir tecnico ahora" : "Pedir cotizacion";
+        b.disabled = false; b.textContent = textoBoton;
       }
     };
   }
   return { html, montar };
+}
+
+// ------------------------------------------- 4b. COMPARAR COTIZACIONES
+//
+//  La pantalla donde el cliente escoge. Regla de diseno: el precio nunca
+//  va solo. Al lado siempre estan la calificacion, cuantos trabajos
+//  lleva y a que hora puede llegar. Un marketplace que solo ensena el
+//  precio termina siendo una lista de los mas baratos, y de ahi no se
+//  vuelve.
+function vistaCotizaciones(ctx) {
+  const t = ctx.trabajo;
+  const lista = (ctx.cotizaciones || []).slice();
+  const rango = ctx.rango;
+
+  if (!t) return { html:`${cab("Cotizaciones", { volver:"trabajos" })}
+    <div class="cont"><div class="vacio">No encontramos ese trabajo.</div></div>`, montar(){} };
+
+  const cerrada = t.cotizaHasta && new Date(t.cotizaHasta) <= new Date();
+  const barato = lista.length ? Math.min(...lista.map(q => q.total)) : 0;
+
+  const tarjeta = (q) => `
+    <div class="tarjeta ${q.total === barato && lista.length > 1 ? "destacada" : ""}">
+      <div class="item">
+        <div style="flex:1">
+          <p class="nom">${esc(q.nombre)}</p>
+          <p class="det">&#11088; ${(q.rating || 0).toFixed(1)} &middot;
+            ${q.trabajos} trabajo${q.trabajos === 1 ? "" : "s"}
+            ${q.verificado ? "&middot; Verificado" : ""}</p>
+          <p class="det">Puede llegar: ${esc(cuando(q.llegada))}</p>
+        </div>
+        <div style="text-align:right">
+          <div class="precio">${money(q.total)}</div>
+          <div class="neto">${q.tarifa ? "incluye garantia " + money(q.tarifa) : "garantia incluida"}</div>
+        </div>
+      </div>
+      ${q.mensaje ? `<p class="det" style="margin-top:8px;font-style:italic">
+        &ldquo;${esc(q.mensaje)}&rdquo;</p>` : ""}
+      <div style="height:9px"></div>
+      <button class="btn btn-primario btn-chico" data-elegir="${q.id}"
+        data-nombre="${esc(q.nombre)}" data-total="${q.total}">
+        Escoger a ${esc((q.nombre || "").split(" ")[0])}
+      </button>
+    </div>`;
+
+  const html = `
+    ${cab("Escoge tu tecnico", { volver:"trabajos", sub:t.servicioNombre || "" })}
+    <div class="cont vista">
+      <div id="err"></div>
+
+      ${cerrada ? `
+        <div class="aviso aviso-naranja">
+          <b>Se cerro el plazo de precios</b>
+          ${lista.length
+            ? "Igual puedes escoger entre los que llegaron."
+            : "No llego ninguno. Pidelo otra vez o llamanos y te conseguimos un tecnico."}
+        </div>` : `
+        <div class="aviso aviso-azul">
+          <b>&#9201; Quedan ${esc(faltaPara(t.cotizaHasta))} para recibir precios</b>
+          Puedes escoger apenas te llegue uno que te guste. No tienes que esperar.
+        </div>`}
+
+      ${rango && rango.max ? `
+        <p class="ayuda" style="margin-bottom:10px">
+          De referencia, trabajos parecidos andan entre ${CONFIG.MONEDA} ${rango.min}
+          y ${CONFIG.MONEDA} ${rango.max}${rango.muestras >= 5
+            ? ` (${rango.muestras} trabajos hechos en MC2)` : ""}.
+        </p>` : ""}
+
+      <p class="seccion-tit">${lista.length
+        ? `${lista.length} precio${lista.length === 1 ? "" : "s"} ${lista.length === 1 ? "recibido" : "recibidos"}`
+        : "Todavia no llega ninguno"}</p>
+
+      ${lista.length ? lista.map(tarjeta).join("") : `
+        <div class="vacio">
+          <span class="ico">&#9203;</span>
+          Los tecnicos de tu zona ya vieron tu pedido.
+          <div style="font-size:12.5px;margin-top:8px">
+            Te avisamos apenas llegue el primer precio. Puedes cerrar la app.
+          </div>
+        </div>`}
+
+      <div style="height:10px"></div>
+      <button class="btn btn-suave btn-chico" data-ir="trabajo">Ver el detalle de mi pedido</button>
+    </div>
+    ${barra("trabajos")}`;
+
+  function montar(el, { ir, recargar }) {
+    const err = (m) => {
+      const c = el.querySelector("#err");
+      if (c) c.innerHTML = m ? `<div class="error-caja">${esc(m)}</div>` : "";
+    };
+
+    el.querySelectorAll("[data-elegir]").forEach(b => {
+      b.onclick = async () => {
+        // Escoger asigna el trabajo y congela el precio: vale la pena
+        // preguntar una vez, aunque estorbe.
+        const ok = confirm(
+          `Vas a escoger a ${b.dataset.nombre} por ${money(Number(b.dataset.total))}.\n\n` +
+          `Los demas precios se descartan. ¿Seguimos?`);
+        if (!ok) return;
+        el.querySelectorAll("[data-elegir]").forEach(x => x.disabled = true);
+        b.textContent = "Asignando...";
+        try {
+          const id = await API.elegirCotizacion(b.dataset.elegir);
+          ir("trabajo", { id: id || t.id });
+        } catch (e) {
+          el.querySelectorAll("[data-elegir]").forEach(x => x.disabled = false);
+          b.textContent = "Escoger";
+          err(e.message || "No se pudo asignar. Intenta de nuevo.");
+        }
+      };
+    });
+
+    const ver = el.querySelector('[data-ir="trabajo"]');
+    if (ver) ver.onclick = () => ir("trabajo", { id: t.id });
+  }
+  return { html, montar };
+}
+
+// "hoy a las 3:00 p.m." dice mas que una fecha completa.
+function cuando(iso) {
+  if (!iso) return "por confirmar";
+  const d = new Date(iso);
+  const hoy = new Date();
+  const manana = new Date(hoy.getTime() + 86400000);
+  const hora = d.toLocaleTimeString("es-PA", { hour:"numeric", minute:"2-digit" });
+  const mismoDia = (a, b) => a.toDateString() === b.toDateString();
+  if (mismoDia(d, hoy)) return `hoy a las ${hora}`;
+  if (mismoDia(d, manana)) return `manana a las ${hora}`;
+  return d.toLocaleDateString("es-PA", { weekday:"long", day:"numeric", month:"short" }) + ` a las ${hora}`;
 }
 
 // ------------------------------------------------------------ 5. TRABAJO
@@ -2063,6 +2479,14 @@ function vistaTrabajo(ctx) {
           <button class="btn btn-linea btn-chico" id="b-llamar">&#128222; Llamar</button>
           <button class="btn btn-linea btn-chico" id="b-wa">&#128172; WhatsApp</button>
         </div>
+      </div>` : enCotizacion(t) ? `
+      <div class="tarjeta">
+        <p class="nom">Los tecnicos te estan mandando precios</p>
+        <p class="det">${t.cotizaHasta && new Date(t.cotizaHasta) > new Date()
+          ? `Quedan ${esc(faltaPara(t.cotizaHasta))} de plazo. Tu escoges cual te conviene.`
+          : "Se cerro el plazo. Mira los que llegaron."}</p>
+        <div style="height:10px"></div>
+        <button class="btn btn-primario btn-chico" id="b-ver-cotiz">Ver los precios</button>
       </div>` : `
       <div class="tarjeta plana"><div class="cargando">Buscando tecnico disponible...</div></div>`}
 
@@ -2132,6 +2556,8 @@ function vistaTrabajo(ctx) {
     if ($("#b-llamar")) $("#b-llamar").onclick = () => location.href = `tel:+${tel}`;
     if ($("#b-wa")) $("#b-wa").onclick = () =>
       window.open(`https://wa.me/${tel}?text=${encodeURIComponent("Hola, es sobre el trabajo " + (t.folio || ""))}`, "_blank");
+
+    if ($("#b-ver-cotiz")) $("#b-ver-cotiz").onclick = () => ir("cotizaciones", { id: t.id });
 
     if ($("#b-cancelar")) $("#b-cancelar").onclick = async () => {
       if (!confirm("Vas a cancelar esta solicitud. Si ya hay un tecnico asignado, " +
@@ -2324,7 +2750,7 @@ function etiqueta(estado) {
   return "et-naranja";
 }
 
-return { esc, vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil };
+return { esc, cuando, vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil, vistaCotizaciones };
 })();
 
 
@@ -2336,8 +2762,9 @@ __M["vistas-contratista"] = (function(){
 // =====================================================================
 
 const { CONFIG } = __M["config"];
-const { API, CATEGORIAS, servicioPorId, economia, money, modoDemo, ESTADO_TXT, URGENCIA_TXT, NIVELES, faltaParaSubir } = __M["datos"];
-const { esc } = __M["vistas"];
+const { API, CATEGORIAS, servicioPorId, economia, money, modoDemo, ESTADO_TXT, URGENCIA_TXT, NIVELES, faltaParaSubir,
+        pintarCajaAvisos, estadoAvisos, enCotizacion, faltaPara } = __M["datos"];
+const { esc, cuando } = __M["vistas"];
 
 const cab = (titulo, { volver = null, sub = null } = {}) => `
   <div class="cab">
@@ -2566,6 +2993,8 @@ function vistaTrabajosCerca(ctx) {
   function tarjetaTrabajo(t, enCurso) {
     const serv = servicioPorId(t.servicioId);
     const eco = t.eco || economia(serv?.precio || 0, { exento:!!serv?.exento, nivel:p.nivel });
+    const cotiza = !enCurso && enCotizacion(t);
+    const mia = cotiza ? (ctx.misCotiz || {})[t.id] : null;
     return `
       <div class="tarjeta ${t.urgencia === "emergencia" && !enCurso ? "destacada" : ""}"
            data-abrir="${t.id}" style="cursor:pointer">
@@ -2578,20 +3007,38 @@ function vistaTrabajosCerca(ctx) {
             <p class="det">${t.distancia ? t.distancia + " km &middot; " : ""}${esc(haceRato(t.creado))}</p>
           </div>
           <div style="text-align:right">
-            <div class="precio">${CONFIG.MONEDA} ${eco.base}</div>
-            <div class="neto">recibes ${eco.netoContratista.toFixed(2)}</div>
+            ${cotiza ? `
+              <div class="precio" style="font-size:14px">${mia
+                ? CONFIG.MONEDA + " " + mia.precio
+                : "Tu pones<br>el precio"}</div>
+              <div class="neto">${mia ? "tu precio" : "a cotizar"}</div>`
+            : `
+              <div class="precio">${CONFIG.MONEDA} ${eco.base}</div>
+              <div class="neto">recibes ${eco.netoContratista.toFixed(2)}</div>`}
           </div>
         </div>
-        ${!enCurso ? `<div style="height:9px"></div>
-          <button class="btn btn-azul btn-chico" data-aceptar="${t.id}">Aceptar trabajo</button>` : ""}
+        ${enCurso ? "" : cotiza ? `<div style="height:9px"></div>
+          <button class="btn ${mia ? "btn-suave" : "btn-primario"} btn-chico" data-cotizar="${t.id}">
+            ${mia ? "Cambiar mi precio" : "Mandar mi precio"}</button>`
+        : `<div style="height:9px"></div>
+          <button class="btn btn-azul btn-chico" data-aceptar="${t.id}">Aceptar trabajo</button>`}
       </div>`;
   }
 
   function montar(el, { ir, recargar }) {
-    pintarCajaAvisos(el);
+    // La caja de avisos es lo menos importante de esta pantalla, asi que va
+    // envuelta y de ultima intencion: si falla, que no se lleve por delante
+    // los botones, que es lo que le pasaba al contratista.
+    const avisos = () => { try { pintarCajaAvisos(el); } catch (e) { console.error("MC2: avisos", e); } };
 
     el.querySelectorAll("[data-abrir]").forEach(d => {
       d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
+    });
+    el.querySelectorAll("[data-cotizar]").forEach(b => {
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        ir("c-trabajo", { id: b.dataset.cotizar });
+      };
     });
     el.querySelectorAll("[data-aceptar]").forEach(b => {
       b.onclick = async (ev) => {
@@ -2607,10 +3054,23 @@ function vistaTrabajosCerca(ctx) {
         }
       };
     });
-    el.querySelector("#b-disp").onclick = async () => {
-      await API.setDisponible(!p.disponible);
-      recargar();
+    const bDisp = el.querySelector("#b-disp");
+    if (bDisp) bDisp.onclick = async () => {
+      const quiere = !p.disponible;
+      const antes = bDisp.textContent;
+      bDisp.disabled = true; bDisp.textContent = quiere ? "Activando..." : "Apagando...";
+      try {
+        // Antes esto no miraba el resultado: si la base de datos decia que no,
+        // el boton se quedaba igual y nadie se enteraba de por que.
+        await API.setDisponible(quiere);
+        recargar();
+      } catch (e) {
+        bDisp.disabled = false; bDisp.textContent = antes;
+        alert(e && e.message ? e.message : "No se pudo cambiar tu disponibilidad.");
+      }
     };
+
+    avisos();
   }
   return { html, montar };
 }
@@ -2629,6 +3089,14 @@ function vistaTrabajoContratista(ctx) {
 
   const siguiente = { asignado:"en_camino", en_camino:"trabajando" }[t.estado];
   const txtSiguiente = { asignado:"Voy en camino", en_camino:"Llegue, empiezo el trabajo" }[t.estado];
+
+  // Trabajo a cotizar: en vez del precio de lista y el boton de aceptar,
+  // el tecnico escribe SU precio. El de la lista queda de referencia.
+  const porCotizar = enCotizacion(t) && !mio;
+  const yaCotice = ctx.miCotizacion || null;
+  const rango = serv?.rango
+    ? serv.rango
+    : (serv?.precio ? [Math.round(serv.precio * 0.7), Math.round(serv.precio * 1.3)] : null);
 
   const html = `
     ${cab(t.servicioNombre || serv?.nombre || "Trabajo", { volver:"c-trabajos", sub:t.folio || "" })}
@@ -2659,18 +3127,60 @@ function vistaTrabajoContratista(ctx) {
         <img class="foto-previa" src="${t.foto}" alt="Foto del dano"
              style="margin-bottom:12px">` : ""}
 
-      <div class="dinero">
-        <div class="l"><span>Precio del trabajo</span><span>${money(eco.base)}</span></div>
-        <div class="l"><span>Comision MC2 (${eco.comisionPct}%)</span>
-          <span style="color:var(--rojo-osc)">- ${money(eco.comision)}</span></div>
-        <div class="l total"><span>Recibes</span>
-          <span style="color:var(--verde-osc)">${money(eco.netoContratista)}</span></div>
-      </div>
-      ${avisoPago(t, eco)}
+      ${porCotizar ? `
+        <div class="aviso aviso-azul">
+          <b>&#128176; Este cliente esta pidiendo precios</b>
+          Manda el tuyo. El cliente compara y escoge.
+          ${t.cotizaHasta && new Date(t.cotizaHasta) > new Date()
+            ? `Quedan ${esc(faltaPara(t.cotizaHasta))}.` : "El plazo ya se cerro."}
+          ${rango ? `<br>De referencia, trabajos parecidos: ${CONFIG.MONEDA} ${rango[0]} a ${CONFIG.MONEDA} ${rango[1]}.` : ""}
+        </div>
 
-      ${!mio ? `
-        <div style="height:14px"></div>
-        <button class="btn btn-azul" id="b-aceptar">Aceptar trabajo</button>` : ""}
+        ${yaCotice ? `
+          <div class="aviso aviso-verde">
+            <b>Ya mandaste ${money(yaCotice.precio)}</b>
+            ${yaCotice.elegida
+              ? "El cliente te escogio. Ya el trabajo es tuyo."
+              : "Esperando que el cliente decida. Puedes cambiar tu precio mientras tanto."}
+          </div>` : ""}
+
+        <label for="q-precio">&iquest;Cuanto cobras por este trabajo?</label>
+        <input id="q-precio" type="number" inputmode="decimal" min="1" step="1"
+               placeholder="Ejemplo: 85" value="${yaCotice ? yaCotice.precio : ""}">
+        <p class="ayuda">Pon el precio completo: mano de obra y materiales.</p>
+
+        <div class="dinero" id="q-cuentas"></div>
+
+        <label>&iquest;Cuando puedes ir?</label>
+        <div class="opciones" id="q-cuando">
+          <button class="opcion activa" data-h="3">Hoy mismo</button>
+          <button class="opcion" data-h="24">Manana</button>
+          <button class="opcion" data-h="72">En 3 dias</button>
+        </div>
+
+        <label for="q-msg">Algo que quieras decirle (opcional)</label>
+        <textarea id="q-msg" placeholder="Llevo el repuesto. Si es otra cosa te aviso antes de tocar nada."
+          >${yaCotice ? esc(yaCotice.mensaje || "") : ""}</textarea>
+
+        <div style="height:6px"></div>
+        <button class="btn btn-primario" id="b-cotizar">
+          ${yaCotice ? "Actualizar mi precio" : "Mandar mi precio"}
+        </button>
+        <p class="ayuda" style="text-align:center">
+          Nadie ve lo que cotizan los demas, ni ellos lo tuyo.
+        </p>` : `
+        <div class="dinero">
+          <div class="l"><span>Precio del trabajo</span><span>${money(eco.base)}</span></div>
+          <div class="l"><span>Comision MC2 (${eco.comisionPct}%)</span>
+            <span style="color:var(--rojo-osc)">- ${money(eco.comision)}</span></div>
+          <div class="l total"><span>Recibes</span>
+            <span style="color:var(--verde-osc)">${money(eco.netoContratista)}</span></div>
+        </div>
+        ${avisoPago(t, eco)}
+
+        ${!mio ? `
+          <div style="height:14px"></div>
+          <button class="btn btn-azul" id="b-aceptar">Aceptar trabajo</button>` : ""}`}
 
       ${mio && siguiente ? `
         <div style="height:14px"></div>
@@ -2722,6 +3232,61 @@ function vistaTrabajoContratista(ctx) {
     if ($("#b-cliente")) $("#b-cliente").onclick = () =>
       window.open(`https://wa.me/${CONFIG.WHATSAPP_SOPORTE}?text=${
         encodeURIComponent("Hola, soy el tecnico de MC2 del trabajo " + (t.folio || ""))}`, "_blank");
+
+    // ---- Mandar mi precio ----
+    if ($("#b-cotizar")) {
+      let horas = 3;
+
+      // La cuenta se ve MIENTRAS escribe, no despues de mandar. Que
+      // nadie descubra la comision cuando ya se comprometio.
+      const pintarCuentas = () => {
+        const v = Number($("#q-precio").value);
+        const caja = $("#q-cuentas");
+        if (!v || v <= 0) {
+          caja.innerHTML = `<div class="l"><span>Escribe tu precio y te digo cuanto recibes</span><span></span></div>`;
+          return;
+        }
+        const e = economia(v, { exento:!!serv?.exento, nivel:p.nivel });
+        caja.innerHTML = `
+          <div class="l"><span>Tu precio</span><span>${money(e.base)}</span></div>
+          <div class="l"><span>Comision MC2 (${e.comisionPct}%)</span>
+            <span style="color:var(--rojo-osc)">- ${money(e.comision)}</span></div>
+          <div class="l total"><span>Recibes</span>
+            <span style="color:var(--verde-osc)">${money(e.netoContratista)}</span></div>
+          <div class="l" style="font-size:12px;padding-top:8px">
+            <span>El cliente ve ${money(e.totalCliente)}, con la garantia MC2 incluida.</span></div>`;
+      };
+      $("#q-precio").oninput = pintarCuentas;
+      pintarCuentas();
+
+      el.querySelectorAll("#q-cuando .opcion").forEach(b => {
+        b.onclick = () => {
+          el.querySelectorAll("#q-cuando .opcion").forEach(x => x.classList.remove("activa"));
+          b.classList.add("activa");
+          horas = Number(b.dataset.h);
+        };
+      });
+
+      $("#b-cotizar").onclick = async () => {
+        const precio = Number($("#q-precio").value);
+        if (!precio || precio <= 0) return err("Escribe cuanto vas a cobrar.");
+        const b = $("#b-cotizar");
+        const antes = b.textContent;
+        b.disabled = true; b.textContent = "Mandando...";
+        try {
+          await API.cotizar(t.id, precio,
+            new Date(Date.now() + horas * 3600000).toISOString(),
+            $("#q-msg").value.trim());
+          err("");
+          alert("Listo. Tu precio le llego al cliente.\n\n" +
+                "Te avisamos si te escoge. Mientras tanto puedes seguir tomando otros trabajos.");
+          ir("c-trabajos");
+        } catch (e) {
+          b.disabled = false; b.textContent = antes;
+          err(e && e.message ? e.message : "No se pudo mandar tu precio.");
+        }
+      };
+    }
 
     if ($("#b-aceptar")) $("#b-aceptar").onclick = async () => {
       const b = $("#b-aceptar"); b.disabled = true; b.textContent = "Aceptando...";
@@ -3469,8 +4034,9 @@ __M["app"] = (function(){
 // =====================================================================
 
 const { CONFIG } = __M["config"];
-const { API, modoDemo, cargarCatalogo } = __M["datos"];
-const { vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil } = __M["vistas"];
+const { API, modoDemo, cargarCatalogo, enCotizacion } = __M["datos"];
+const { vistaEntrada, vistaInicio, vistaCatalogo, vistaPedir, vistaTrabajo, vistaTrabajos, vistaPerfil,
+        vistaCotizaciones } = __M["vistas"];
 const { vistaRegistroContratista, vistaTrabajosCerca, vistaTrabajoContratista, vistaCobrar, vistaAgenda, vistaPerfilContratista } = __M["vistas-contratista"];
 const { vistaPanel, vistaContratistaDetalle } = __M["vistas-panel"];
 
@@ -3497,6 +4063,7 @@ const VISTAS = {
   catalogo: vistaCatalogo,
   pedir:    vistaPedir,
   trabajo:  vistaTrabajo,
+  cotizaciones: vistaCotizaciones,
   trabajos: vistaTrabajos,
   perfil:   vistaPerfil,
   // contratista
@@ -3513,7 +4080,7 @@ const VISTAS = {
 
 const esRutaContratista = (r) => r.startsWith("c-") && r !== "c-registro";
 const esRutaPanel = (r) => r.startsWith("p-");
-const NECESITAN_TRABAJOS = ["inicio", "trabajos", "trabajo"];
+const NECESITAN_TRABAJOS = ["inicio", "trabajos", "trabajo", "cotizaciones"];
 
 function pintarCargando() {
   raiz.innerHTML = `<div class="cargando">Cargando...</div>`;
@@ -3532,7 +4099,11 @@ async function cargarDatos() {
       estado.contratista = await API.perfilContratista();
       estado.misTrabajos = await API.misTrabajosContratista();
       estado.billetera = await API.billetera();
-      if (r === "c-trabajos") estado.cerca = await API.trabajosCerca();
+      if (r === "c-trabajos") {
+        estado.cerca = await API.trabajosCerca();
+        try { estado.misCotiz = await API.misCotizaciones(); }
+        catch (e) { estado.misCotiz = {}; }
+      }
     } catch (e) {
       estado.contratista = estado.contratista || null;
       estado.misTrabajos = estado.misTrabajos || [];
@@ -3552,10 +4123,33 @@ async function cargarDatos() {
     }
   }
 
-  if ((r === "trabajo" || r === "c-trabajo" || r === "c-cobrar") && estado.params.id) {
+  if ((r === "trabajo" || r === "c-trabajo" || r === "c-cobrar" || r === "cotizaciones")
+      && estado.params.id) {
     const todos = [...estado.trabajos, ...estado.misTrabajos, ...estado.cerca];
     estado.trabajo = todos.find(t => t.id === estado.params.id)
       || await API.trabajo(estado.params.id);
+  }
+
+  // Los precios que le mandaron al cliente, y de cuanto suele ser este
+  // trabajo. Si el rango falla no se cae la pantalla: es un dato de
+  // apoyo, no la pantalla.
+  if (r === "cotizaciones" && estado.params.id) {
+    try { estado.cotizaciones = await API.cotizacionesDe(estado.params.id); }
+    catch (e) { estado.cotizaciones = []; }
+    try {
+      estado.rango = estado.trabajo
+        ? await API.rangoReferencia(estado.trabajo.categoria, estado.trabajo.servicioId)
+        : null;
+    } catch (e) { estado.rango = null; }
+  }
+
+  // Lo que YO ya cotice, para no dejar al contratista mandar dos precios
+  // al mismo trabajo sin darse cuenta.
+  if (r === "c-trabajo" && estado.params.id && enCotizacion(estado.trabajo)) {
+    try { estado.miCotizacion = await API.miCotizacion(estado.params.id); }
+    catch (e) { estado.miCotizacion = null; }
+  } else {
+    estado.miCotizacion = null;
   }
 }
 
