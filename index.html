@@ -305,7 +305,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "2.3",
+  VERSION: "2.4",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -1080,6 +1080,19 @@ const API = {
       p_trabajo_id: trabajoId, p_precio: precio,
       p_llegada: llegadaISO, p_mensaje: mensaje || null
     });
+  },
+
+  // POR QUE NO VEO TRABAJOS.
+  //
+  // Un "0 trabajos cerca de ti" sin explicacion se lee como "esta app no
+  // sirve". Y casi nunca es eso: es que falta la idoneidad, o que quedo
+  // en No disponible, o que no le anotaron los oficios. La base lo sabe;
+  // hay que decirlo.
+  async porQueNoVeoTrabajos() {
+    const c = await cliente();
+    if (!c) return null;
+    try { return await pedirFuncion(c, "por_que_no_veo_trabajos", {}); }
+    catch (e) { return null; }
   },
 
   // Cuantos precios le llegaron a cada trabajo del cliente, en UNA sola
@@ -3321,9 +3334,14 @@ function vistaTrabajosCerca(ctx) {
       ${lista.length ? lista.map(t => tarjetaTrabajo(t, false)).join("") : `
         <div class="vacio">
           <span class="ico">&#128269;</span>
+          <div id="motivo-vacio"></div>
           No hay trabajos disponibles en tu zona ahorita.
           <div style="font-size:12.5px;margin-top:8px">${estadoAvisos().estado === "activo"
-            ? "Te suena el celular apenas entre uno."
+            // Ojo: aqui NO se promete que suene. Que el permiso este dado
+            // no quiere decir que el aviso vaya a llegar, y prometerlo es
+            // lo que dejaba al contratista esperando una alarma que nunca
+            // iba a sonar. La caja de arriba dice la verdad comprobada.
+            ? "En cuanto entre uno aparece aqui solo, sin recargar."
             : "Activa los avisos arriba para que te suene el celular."}</div>
         </div>`}
     </div>
@@ -3373,6 +3391,23 @@ function vistaTrabajosCerca(ctx) {
     // envuelta y de ultima intencion: si falla, que no se lleve por delante
     // los botones, que es lo que le pasaba al contratista.
     const avisos = () => { try { pintarCajaAvisos(el); } catch (e) { anotarFalla("caja de avisos", e); } };
+
+    // Si no hay trabajos, decirle POR QUE. Casi nunca es que no haya
+    // trabajo: es que le falta un papel, o que quedo en No disponible.
+    // Un vacio mudo hace que el contratista se vaya creyendo que la app
+    // no sirve, y traerlo de vuelta cuesta diez veces mas.
+    const hueco = el.querySelector("#motivo-vacio");
+    if (hueco) (async () => {
+      try {
+        const motivo = await API.porQueNoVeoTrabajos();
+        if (!motivo) return;
+        hueco.innerHTML = `
+          <div class="aviso aviso-naranja" style="text-align:left;margin-bottom:14px">
+            <b>&#9888;&#65039; Por esto no te llegan trabajos</b>
+            ${esc(motivo)}
+          </div>`;
+      } catch (e) { anotarFalla("motivo de lista vacia", e); }
+    })();
 
     el.querySelectorAll("[data-abrir]").forEach(d => {
       d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
