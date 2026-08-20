@@ -1,6 +1,6 @@
 // MC2 - Service Worker (version de archivo unico)
 // Cachea solo la pagina y los iconos. Todo el codigo va dentro de index.html.
-const VERSION = "mc2-v13";
+const VERSION = "mc2-v14";
 const BASICOS = ["./", "./index.html", "./manifest.json",
                  "./iconos/icono-192.png", "./iconos/icono-512.png"];
 

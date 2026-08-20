@@ -279,6 +279,19 @@ const CONFIG = {
   SEGUNDOS_REFRESCO: 12,
 
 
+  // ---- CUANTO AGUANTA UN PEDIDO SIN QUE NADIE LO TOME ----
+  //
+  // Horas. Pasado ese tiempo el pedido se cierra solo y sale de la
+  // lista del contratista, y al cliente se le dice que nadie lo tomo.
+  //
+  // Sin esto, la lista se llena de trabajos de hace dias y el
+  // contratista nuevo abre la app y ve un cementerio.
+  //
+  // Ojo: quien manda es el parametro 'horas_para_caducar' de la base.
+  // Este numero es para la pantalla y el modo demo.
+  HORAS_CADUCA: 24,
+
+
   // ---- CUANTO TIEMPO SE RECIBEN COTIZACIONES ----
   //
   // El cliente publica el trabajo y los contratistas mandan su precio.
@@ -292,7 +305,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "2.1",
+  VERSION: "2.2",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -1325,14 +1338,49 @@ const API = {
     return !!filas[0].disponible;
   },
 
+  // "No me interesa": se lo quita de SU lista, no de la de los demas.
+  // El pedido es del cliente; ningun contratista le borra el trabajo a
+  // otro. Queda anotado para saber que trabajos se rechazan mas.
+  async descartarTrabajo(id) {
+    const c = await cliente();
+    if (!c) {
+      const d = leerDemo();
+      d.descartados = d.descartados || [];
+      if (!d.descartados.includes(id)) d.descartados.push(id);
+      guardarDemo(d);
+      return true;
+    }
+    return await pedirFuncion(c, "descartar_trabajo", { p_trabajo_id: id });
+  },
+
+  // Cierra los pedidos que llevan mas de un dia sin que nadie los tome.
+  // Se llama de vez en cuando, no en cada refresco: es barata pero no
+  // gratis, y el resultado no cambia de un minuto a otro.
+  async caducarViejos() {
+    const c = await cliente();
+    if (!c) return 0;
+    const LLAVE_ULT = "mc2_ultima_caducada";
+    try {
+      const ult = Number(localStorage.getItem(LLAVE_ULT) || 0);
+      if (Date.now() - ult < 3600000) return 0;      // una vez por hora basta
+      localStorage.setItem(LLAVE_ULT, String(Date.now()));
+    } catch (e) { /* sin almacenamiento, se llama y ya */ }
+    try { return await pedirFuncion(c, "caducar_trabajos", {}); }
+    catch (e) { anotarFalla("caducar trabajos viejos", e); return 0; }
+  },
+
   // trabajos abiertos que le sirven a este contratista
   async trabajosCerca() {
     const c = await cliente();
     if (!c) {
       const d = leerDemo();
       const cats = d.contratista?.cats || [];
+      const descartados = d.descartados || [];
+      const limite = Date.now() - CONFIG.HORAS_CADUCA * 3600000;
       const propios = d.trabajos.filter(t => t.estado === "buscando");
       return [...d.pendientes, ...propios]
+        .filter(t => !descartados.includes(t.id))
+        .filter(t => !t.creado || new Date(t.creado).getTime() > limite)
         .filter(t => cats.length === 0 || cats.includes(t.categoria))
         .map(t => ({ ...t, servicioNombre: servicioPorId(t.servicioId)?.nombre || "Trabajo",
                      eco: economia(servicioPorId(t.servicioId)?.precio || 0,
@@ -1341,14 +1389,25 @@ const API = {
         .sort((a,b) => (b.urgencia === "emergencia") - (a.urgencia === "emergencia")
                      || (a.distancia || 0) - (b.distancia || 0));
     }
-    const { data: u } = await c.auth.getUser();
-    const { data: cats } = await c.from("contratista_categorias")
-      .select("categoria_id").eq("contratista_id", u.user.id);
-    const ids = (cats || []).map(x => x.categoria_id);
-    let q = c.from("trabajos").select("*").eq("estado","buscando").limit(30);
-    if (ids.length) q = q.in("categoria_id", ids);
-    const { data } = await q;
-    return (data || []).map(normalizar);
+    // La lista la arma la base, no la pantalla: asi el filtro (mi
+    // oficio, que este habilitado, que no sea viejo, que no lo haya
+    // descartado) es el mismo aqui, en el reparto y en los avisos.
+    try {
+      const filas = await pedirFuncion(c, "trabajos_para_mi", { p_limite: 30 });
+      return (filas || []).map(normalizar);
+    } catch (e) {
+      // Si todavia no corriste mc2_caducar.sql, la app sigue andando con
+      // la consulta de antes en vez de quedarse en blanco.
+      anotarFalla("lista de trabajos (usando la version vieja)", e);
+      const { data: u } = await c.auth.getUser();
+      const { data: cats } = await c.from("contratista_categorias")
+        .select("categoria_id").eq("contratista_id", u.user.id);
+      const ids = (cats || []).map(x => x.categoria_id);
+      let q = c.from("trabajos").select("*").eq("estado","buscando").limit(30);
+      if (ids.length) q = q.in("categoria_id", ids);
+      const { data } = await q;
+      return (data || []).map(normalizar);
+    }
   },
 
   async aceptarTrabajo(id) {
@@ -3202,6 +3261,10 @@ function vistaTrabajosCerca(ctx) {
             ${mia ? "Cambiar mi precio" : "Mandar mi precio"}</button>`
         : `<div style="height:9px"></div>
           <button class="btn btn-azul btn-chico" data-aceptar="${t.id}">Aceptar trabajo</button>`}
+        ${enCurso || mia ? "" : `
+          <div style="height:7px"></div>
+          <button class="btn btn-suave btn-chico" data-descartar="${t.id}"
+            style="font-size:12px;color:var(--gris-2)">No me interesa</button>`}
       </div>`;
   }
 
@@ -3213,6 +3276,19 @@ function vistaTrabajosCerca(ctx) {
 
     el.querySelectorAll("[data-abrir]").forEach(d => {
       d.onclick = () => ir("c-trabajo", { id: d.dataset.abrir });
+    });
+    el.querySelectorAll("[data-descartar]").forEach(b => {
+      b.onclick = async (ev) => {
+        ev.stopPropagation();
+        b.disabled = true; b.textContent = "Quitando...";
+        try {
+          await API.descartarTrabajo(b.dataset.descartar);
+          recargar();
+        } catch (e) {
+          b.disabled = false; b.textContent = "No me interesa";
+          alert(e && e.message ? e.message : "No se pudo quitar de tu lista.");
+        }
+      };
     });
     el.querySelectorAll("[data-cotizar]").forEach(b => {
       b.onclick = (ev) => {
@@ -4285,6 +4361,9 @@ async function cargarDatos() {
       estado.misTrabajos = await API.misTrabajosContratista();
       estado.billetera = await API.billetera();
       if (r === "c-trabajos") {
+        // De paso, cerrar los pedidos que ya nadie va a tomar. Una vez
+        // por hora, no en cada refresco.
+        API.caducarViejos();
         estado.cerca = await API.trabajosCerca();
         try { estado.misCotiz = await API.misCotizaciones(); }
         catch (e) { estado.misCotiz = {}; }
