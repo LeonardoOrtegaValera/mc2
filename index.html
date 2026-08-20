@@ -264,6 +264,21 @@ const CONFIG = {
   COBRO: "al_final",
 
 
+  // ---- CADA CUANTO SE ACTUALIZA LA PANTALLA SOLA ----
+  //
+  // Segundos. La app se refresca sola mientras la pantalla esta abierta,
+  // asi el contratista ve entrar el trabajo y el cliente ve llegar los
+  // precios sin tocar nada.
+  //
+  // Solo corre en las pantallas donde se espera algo, y se apaga cuando
+  // el celular se guarda en el bolsillo: no gasta datos ni bateria de
+  // gente que paga el megabyte.
+  //
+  // Mas bajo = mas rapido de ver, mas consultas. 12 esta bien para
+  // arrancar; con muchos usuarios, subelo a 20 o 30.
+  SEGUNDOS_REFRESCO: 12,
+
+
   // ---- CUANTO TIEMPO SE RECIBEN COTIZACIONES ----
   //
   // El cliente publica el trabajo y los contratistas mandan su precio.
@@ -277,7 +292,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "2.0",
+  VERSION: "2.1",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -1134,13 +1149,46 @@ const API = {
     } catch (e) { return caida; }
   },
 
+  // QUIEN ES EL TECNICO QUE ME VA A LLEGAR.
+  //
+  // Esto faltaba y se notaba feo: el trabajo quedaba asignado, con su
+  // precio y todo, y al cliente le seguia diciendo "Buscando tecnico
+  // disponible...". Parecia que nadie habia tomado el trabajo.
+  //
+  // Sale de la vista publica, que a proposito solo expone nombre,
+  // calificacion, nivel y trabajos hechos. Ni cedula ni saldos ni
+  // telefono: eso no es asunto del cliente.
+  async contratistasPublicos(ids = []) {
+    const limpios = [...new Set(ids.filter(Boolean))];
+    if (!limpios.length) return {};
+    const c = await cliente();
+    if (!c) {
+      const m = {};
+      CONTRATISTAS_DEMO.forEach(x => { if (limpios.includes(x.id)) m[x.id] = x; });
+      return m;
+    }
+    const { data } = await c.from("v_contratistas_publico")
+      .select("id,nombre,rating,trabajos_completados,nivel,verificado").in("id", limpios);
+    const m = {};
+    (data || []).forEach(x => {
+      m[x.id] = { id:x.id, nombre:x.nombre, rating:Number(x.rating) || 0,
+                  trabajos:x.trabajos_completados || 0, nivel:x.nivel,
+                  verificado:!!x.verificado };
+    });
+    return m;
+  },
+
   async misTrabajos() {
     const c = await cliente();
     if (!c) return leerDemo().trabajos;
     const { data, error } = await c.from("trabajos")
       .select("*").order("creado", { ascending:false }).limit(50);
     if (error) return [];
-    return (data || []).map(normalizar);
+    const lista = (data || []).map(normalizar);
+    // Una sola consulta para todos los tecnicos de la lista.
+    const quienes = await this.contratistasPublicos(lista.map(t => t.contratistaId));
+    lista.forEach(t => { if (t.contratistaId) t.contratista = quienes[t.contratistaId] || null; });
+    return lista;
   },
 
   async trabajo(id) {
@@ -1150,7 +1198,13 @@ const API = {
       return d.trabajos.find(t => t.id === id) || d.pendientes.find(t => t.id === id) || null;
     }
     const { data } = await c.from("trabajos").select("*").eq("id", id).single();
-    return data ? normalizar(data) : null;
+    if (!data) return null;
+    const t = normalizar(data);
+    if (t.contratistaId) {
+      const quienes = await this.contratistasPublicos([t.contratistaId]);
+      t.contratista = quienes[t.contratistaId] || null;
+    }
+    return t;
   },
 
   async avanzar(id, estado) {
@@ -2583,8 +2637,12 @@ function vistaTrabajo(ctx) {
           : "Se cerro el plazo. Mira los que llegaron."}</p>
         <div style="height:10px"></div>
         <button class="btn btn-primario btn-chico" id="b-ver-cotiz">Ver los precios</button>
-      </div>` : `
-      <div class="tarjeta plana"><div class="cargando">Buscando tecnico disponible...</div></div>`}
+      </div>` : t.estado === "buscando" ? `
+      <div class="tarjeta plana"><div class="cargando">Buscando tecnico disponible...</div></div>` : `
+      <div class="tarjeta">
+        <p class="nom">&#9989; Ya tienes tecnico asignado</p>
+        <p class="det">Estamos cargando sus datos. Si no aparecen, recarga la pantalla.</p>
+      </div>`}
 
       ${["buscando","asignado","en_camino"].includes(t.estado) ? `
       <div style="height:12px"></div>
@@ -4280,9 +4338,9 @@ async function cargarDatos() {
   }
 }
 
-async function render() {
+async function render(traerDatos = true) {
   const fabrica = VISTAS[estado.ruta] || VISTAS.inicio;
-  await cargarDatos();
+  if (traerDatos) await cargarDatos();
 
   const vista = fabrica(estado);
   const cinta = modoDemo() && !["entrada","c-registro"].includes(estado.ruta)
@@ -4318,7 +4376,85 @@ async function render() {
   });
 
   window.scrollTo(0, 0);
+  arrancarRefresco();
 }
+
+// ---------------------------------------------------------------------
+//  QUE LA PANTALLA SE ACTUALICE SOLA
+//
+//  Sin esto, el contratista tenia que refrescar para ver entrar el
+//  trabajo y el cliente tenia que refrescar para ver llegar los
+//  precios. En una demo eso se lee como "la app no funciona" o "nadie
+//  esta tomando el pedido", que es peor todavia.
+//
+//  Como funciona: cada tantos segundos vuelve a pedir los datos y
+//  compara una FIRMA (un resumen de lo que importa). Si nada cambio, no
+//  toca la pantalla: nada de parpadeos ni de perder lo que el usuario
+//  estaba escribiendo. Si cambio, repinta.
+//
+//  Y se apaga cuando el celular se guarda en el bolsillo. Al volver a
+//  abrirlo, refresca de una en vez de esperar el proximo turno.
+// ---------------------------------------------------------------------
+const RUTAS_VIVAS = ["inicio", "trabajos", "trabajo", "cotizaciones",
+                     "c-trabajos", "c-trabajo", "p-cola"];
+let refresco = null;
+let refrescando = false;
+
+// Solo lo que se ve en pantalla y puede cambiar del otro lado.
+function firmaDelEstado() {
+  const t = (x) => x ? [x.id, x.estado, x.contratistaId, x.modalidad,
+                        x.eco && x.eco.base].join("~") : "";
+  return JSON.stringify({
+    trabajos: (estado.trabajos || []).map(t),
+    mios: (estado.misTrabajos || []).map(t),
+    cerca: (estado.cerca || []).map(t),
+    uno: t(estado.trabajo),
+    cotiz: (estado.cotizaciones || []).map(q => [q.id, q.precio, q.elegida].join("~")),
+    conteo: estado.conteoCotiz || {},
+    mias: estado.misCotiz || {},
+    disp: estado.contratista && estado.contratista.disponible,
+    cola: (estado.cola || []).length
+  });
+}
+
+function pararRefresco() {
+  if (refresco) { clearInterval(refresco); refresco = null; }
+}
+
+function arrancarRefresco() {
+  pararRefresco();
+  if (!RUTAS_VIVAS.includes(estado.ruta)) return;
+  if (!CONFIG.SEGUNDOS_REFRESCO) return;
+  refresco = setInterval(mirarSiCambio, CONFIG.SEGUNDOS_REFRESCO * 1000);
+}
+
+async function mirarSiCambio() {
+  if (refrescando) return;                 // no encimar dos consultas
+  if (document.hidden) return;             // en el bolsillo no se gasta nada
+  if (!RUTAS_VIVAS.includes(estado.ruta)) return;
+  // Si el usuario esta escribiendo, no le movemos la pantalla debajo.
+  const foco = document.activeElement;
+  if (foco && ["INPUT", "TEXTAREA", "SELECT"].includes(foco.tagName)) return;
+
+  refrescando = true;
+  try {
+    const antes = firmaDelEstado();
+    await cargarDatos();
+    if (firmaDelEstado() !== antes) await render(false);
+  } catch (e) {
+    // Un refresco que falla no molesta a nadie: se intenta al proximo
+    // turno. Queda anotado para la revision de pantallas.
+    anotarFalla("refresco automatico", e);
+  } finally {
+    refrescando = false;
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { pararRefresco(); return; }
+  arrancarRefresco();
+  mirarSiCambio();          // al volver, al dia de una
+});
 
 // El aviso rojo de arriba. Dice que fallo, en que pantalla, y deja
 // recargar sin cerrar sesion.
