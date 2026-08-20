@@ -305,7 +305,7 @@ const CONFIG = {
 
   // ---- De aqui para abajo no hace falta que toques nada ----
 
-  VERSION: "2.2",
+  VERSION: "2.3",
 
   MARCA: "MC2",
   NOMBRE_LARGO: "Mantenimiento y Construccion 2.0",
@@ -1657,18 +1657,56 @@ const API = {
   },
 
   // ---- AVISOS AL CELULAR (7 de agosto de 2026) ----
+  // ANOTAR ESTE APARATO PARA QUE LE SUENEN LOS AVISOS.
+  //
+  // Antes se hacia con un delete y un insert desde aqui, y NO se miraba
+  // el resultado. El 20 de agosto se vio lo que eso provocaba: cuatro
+  // contratistas dados de alta y cero aparatos anotados, con la app
+  // diciendoles "te suena el celular apenas entre uno". Nadie se entero
+  // en dos semanas.
+  //
+  // Ahora lo hace la base de una sola vez, y si falla, se levanta la voz.
   async registrarCelular({ endpoint, p256dh, auth, dispositivo }) {
     const c = await cliente();
     if (!c) return null;
     const { data: u } = await c.auth.getUser();
-    if (!u || !u.user) return null;
-    // Si este mismo celular ya estaba, se reemplaza. Sin esto el
-    // contratista recibiria cada aviso dos y tres veces.
-    await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
-    const { data } = await c.from("suscripciones_push").insert({
-      perfil_id: u.user.id, endpoint, p256dh, auth, dispositivo,
-    }).select().single();
-    return data || null;
+    if (!u || !u.user) throw new Error("Se cerro tu sesion. Vuelve a entrar.");
+    try {
+      return await pedirFuncion(c, "registrar_celular", {
+        p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth,
+        p_dispositivo: dispositivo || null
+      });
+    } catch (e) {
+      // Si todavia no corriste mc2_avisos.sql, se intenta a la antigua,
+      // pero esta vez SI se mira si fallo.
+      await c.from("suscripciones_push").delete().eq("endpoint", endpoint);
+      const { data, error } = await c.from("suscripciones_push").insert({
+        perfil_id: u.user.id, endpoint, p256dh, auth, dispositivo,
+      }).select().single();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("No se pudo guardar el aviso en tu cuenta.");
+      return data;
+    }
+  },
+
+  // ¿Este aparato quedo anotado DE VERDAD? Lo pregunta a la base, no lo
+  // supone por el permiso del navegador.
+  async avisosGuardados(endpoint) {
+    const c = await cliente();
+    if (!c) return true;                       // en demo no hay nada que comprobar
+    try {
+      return !!(await pedirFuncion(c, "tengo_avisos", { p_endpoint: endpoint || null }));
+    } catch (e) {
+      const { data } = await c.from("suscripciones_push").select("id").limit(1);
+      return !!(data && data.length);
+    }
+  },
+
+  // Mandarse un aviso a uno mismo, para probar en el celular de verdad.
+  async probarMiAviso() {
+    const c = await cliente();
+    if (!c) return "En modo demo no hay avisos que probar.";
+    return await pedirFuncion(c, "probar_mi_aviso", {});
   },
 
   async borrarCelular(endpoint) {
@@ -1739,7 +1777,20 @@ function pintarCajaAvisos(el) {
   if (!caja) return;
   const e = estadoAvisos();
 
-  if (e.estado === "activo") { caja.innerHTML = ""; return; }
+  // PERMISO DADO NO ES LO MISMO QUE AVISO GUARDADO.
+  //
+  // Aqui estaba el error que dejo dos semanas de avisos muertos: si el
+  // navegador decia "granted", la app daba el tema por resuelto y esta
+  // caja no volvia a salir NUNCA. Aunque el aparato no se hubiera
+  // llegado a anotar en la base, que es lo que de verdad hace que suene.
+  //
+  // Ahora, con el permiso dado, se va a preguntar a la base. Si el
+  // aparato no esta anotado, se avisa y se deja reintentar.
+  if (e.estado === "activo") {
+    caja.innerHTML = "";
+    comprobarAvisosDeVerdad(caja);
+    return;
+  }
 
   if (!e.puede) {
     caja.innerHTML = `
@@ -1843,6 +1894,46 @@ function llaveABytes(b64url) {
   return bytes;
 }
 
+// Con el permiso ya dado, comprueba que el aparato este anotado en la
+// base. Si no lo esta, dibuja el aviso y el boton para reintentar.
+async function comprobarAvisosDeVerdad(caja) {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sus = reg && await reg.pushManager.getSubscription();
+
+    if (sus && await API.avisosGuardados(sus.endpoint)) return;   // todo en orden
+
+    caja.innerHTML = `
+      <div class="aviso aviso-naranja">
+        <b>&#128276; Diste permiso, pero los avisos no quedaron activados</b>
+        Por eso no te suena el celular cuando entra un trabajo.
+        <div style="height:9px"></div>
+        <button class="btn btn-primario btn-chico" id="b-avisos">Activar de nuevo</button>
+        <div id="est-avisos" style="margin-top:8px;font-size:12.5px"></div>
+      </div>`;
+
+    const b = caja.querySelector("#b-avisos");
+    const est = caja.querySelector("#est-avisos");
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Activando...";
+      const r = await activarAvisos();
+      if (r.ok) {
+        caja.innerHTML = `
+          <div class="aviso aviso-verde">
+            <b>&#9989; Listo, ahora si</b>
+            Te avisamos apenas entre un trabajo, aunque tengas la app cerrada.
+          </div>`;
+        return;
+      }
+      b.disabled = false; b.textContent = "Activar de nuevo";
+      est.textContent = r.detalle || mensajeAvisos({ motivo: r.motivo }) ||
+                        "No se pudo. Cierra la app, vuelve a abrirla e intenta otra vez.";
+    };
+  } catch (err) {
+    anotarFalla("comprobar avisos", err);
+  }
+}
+
 async function activarAvisos() {
   const e = estadoAvisos();
   if (!e.puede) return { ok: false, motivo: e.motivo };
@@ -1872,10 +1963,18 @@ async function activarAvisos() {
       auth: j.keys.auth,
       dispositivo: (navigator.userAgent || "").slice(0, 120),
     });
+
+    // Y se comprueba que de verdad quedo. Decir "listo" sin mirar es lo
+    // que nos costo dos semanas de avisos que no sonaban.
+    if (!await API.avisosGuardados(sus.endpoint)) {
+      return { ok:false, motivo:"no_guardado",
+               detalle:"El permiso quedo dado, pero tu cuenta no guardo el aviso. Avisale a Leo." };
+    }
     return { ok: true };
   } catch (err) {
-    console.warn("MC2: no se pudo activar los avisos", err);
-    return { ok: false, motivo: "error" };
+    anotarFalla("activar avisos", err);
+    return { ok: false, motivo: "error",
+             detalle: (err && err.message) ? err.message : "" };
   }
 }
 
@@ -3002,7 +3101,8 @@ __M["vistas-contratista"] = (function(){
 
 const { CONFIG } = __M["config"];
 const { API, CATEGORIAS, servicioPorId, economia, money, modoDemo, ESTADO_TXT, URGENCIA_TXT, NIVELES, faltaParaSubir,
-        pintarCajaAvisos, estadoAvisos, enCotizacion, faltaPara, anotarFalla } = __M["datos"];
+        pintarCajaAvisos, estadoAvisos, enCotizacion, faltaPara, anotarFalla,
+        mensajeAvisos } = __M["datos"];
 const { esc, cuando } = __M["vistas"];
 
 const cab = (titulo, { volver = null, sub = null } = {}) => `
@@ -3820,6 +3920,19 @@ function vistaPerfilContratista(ctx) {
         mejor pagados. Cada trabajo bien cerrado con foto te sube.
       </div>
 
+      <p class="seccion-tit" style="margin-top:18px">&#128276; Avisos en este celular</p>
+      <div class="tarjeta plana">
+        <p class="det" id="est-push">Comprobando...</p>
+        <div style="height:9px"></div>
+        <button class="btn btn-linea btn-chico" id="b-probar-aviso">
+          Mandarme un aviso de prueba</button>
+        <p class="ayuda" style="margin-top:7px">
+          Si el aviso no te llega, no te vas a enterar de los trabajos.
+          Pruebalo con la pantalla apagada.
+        </p>
+      </div>
+
+      <div style="height:16px"></div>
       <button class="btn btn-suave btn-chico" id="b-salir">Cerrar sesion</button>
 
       ${modoDemo() ? `
@@ -3843,6 +3956,40 @@ function vistaPerfilContratista(ctx) {
     };
     const lim = $("#b-limpiar");
     if (lim) lim.onclick = async () => { await API.borrarDemo(); location.reload(); };
+
+    // ---- Avisos: decir la verdad sobre si este celular va a sonar ----
+    const est = $("#est-push");
+    if (est) (async () => {
+      try {
+        const e = estadoAvisos();
+        if (!e.puede) { est.textContent = mensajeAvisos(e); return; }
+        if (e.estado !== "activo") {
+          est.textContent = "No has dado permiso todavia. Actívalos en la pantalla de trabajos.";
+          return;
+        }
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sus = reg && await reg.pushManager.getSubscription();
+        if (!sus) { est.textContent = "Diste permiso pero este celular no quedo suscrito. Vuelve a activarlos."; return; }
+        est.textContent = await API.avisosGuardados(sus.endpoint)
+          ? "✅ Este celular esta listo para recibir avisos."
+          : "Diste permiso pero tu cuenta no lo guardo. Vuelve a activarlos en la pantalla de trabajos.";
+      } catch (err) {
+        anotarFalla("estado de avisos", err);
+        est.textContent = "No se pudo comprobar el estado de los avisos.";
+      }
+    })();
+
+    const bp = $("#b-probar-aviso");
+    if (bp) bp.onclick = async () => {
+      bp.disabled = true; bp.textContent = "Mandando...";
+      try {
+        const r = await API.probarMiAviso();
+        alert(r || "Mandado. Mira el telefono.");
+      } catch (e) {
+        alert(e && e.message ? e.message : "No se pudo mandar el aviso de prueba.");
+      }
+      bp.disabled = false; bp.textContent = "Mandarme un aviso de prueba";
+    };
   }
   return { html, montar };
 }
